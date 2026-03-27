@@ -11,7 +11,7 @@ function App() {
   const [expenses, setExpenses] = useState([]);
   const [user, setUser] = useState(null);
 
-  // ✅ load user (if logged in)
+  // ✅ load user 
   useEffect(() => {
     const savedUser = localStorage.getItem("username");
     if (savedUser) setUser(savedUser);
