@@ -6,20 +6,17 @@ import {
   Mail, Loader2, Eye, EyeOff 
 } from "lucide-react";
 
-// 🔥 Supabase
 import { supabase } from "../supabase";
 
 export default function LoginSignup({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(true);
-  const [showPassword, setShowPassword] = useState(false); // 👁️ Password toggle state
+  const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-
-  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
 
   const showToast = (msg) => {
     setToast(msg);
@@ -28,153 +25,153 @@ export default function LoginSignup({ onLogin }) {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      showToast("Please fill all fields ⚠️");
+      showToast("Enter email and password");
       return;
     }
 
-    if (!passwordRegex.test(password)) {
-      showToast("Letters + Numbers required (min 6) 🔒");
+    if (password.length < 6) {
+      showToast("Password must be at least 6 characters");
       return;
     }
 
     setLoading(true);
 
     try {
-      let response;
-
       if (isSignup) {
-        response = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
-        if (response.error) throw response.error;
-        showToast("Account created 🎉");
+
+        if (error) throw error;
+
+        // 🔥 Detect existing user
+        if (data.user && data.user.identities?.length === 0) {
+          showToast("Account already exists. Please login.");
+          return;
+        }
+
+        showToast("Account created successfully");
+
+        setTimeout(() => {
+          onLogin(data.user);
+          navigate("/");
+        }, 800);
+
       } else {
-        response = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (response.error) throw response.error;
-        showToast("Welcome back! ✅");
+
+        if (error) {
+          showToast("Invalid email or password");
+          return;
+        }
+
+        showToast("Login successful");
+
+        setTimeout(() => {
+          onLogin(data.user);
+          navigate("/");
+        }, 800);
       }
 
-      setTimeout(() => {
-        onLogin(response.data.user);
-        navigate("/");
-      }, 800);
-
     } catch (err) {
-      showToast(err.message || "Authentication failed");
+      console.error(err);
+      showToast("Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="h-screen bg-[#050505] text-white px-8 flex flex-col justify-center max-w-md mx-auto relative overflow-hidden font-sans">
-      
-      {/* 🔹 TOAST */}
-      <div className="fixed top-10 left-0 right-0 z-[100] flex justify-center pointer-events-none">
+    <div className="h-screen bg-[#050505] text-white px-8 flex flex-col justify-center max-w-md mx-auto">
+
+      {/* Toast */}
+      <div className="fixed top-10 left-0 right-0 flex justify-center z-50">
         <AnimatePresence>
           {toast && (
             <motion.div
-              initial={{ y: -50, opacity: 0, scale: 0.9 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -50, opacity: 0, scale: 0.9 }}
-              className="bg-white/10 backdrop-blur-xl border border-white/20 px-6 py-3 rounded-[2rem] flex items-center gap-3 shadow-2xl pointer-events-auto"
+              initial={{ y: -40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -40, opacity: 0 }}
+              className="bg-white/10 border border-white/20 px-5 py-2 rounded-xl flex items-center gap-2"
             >
-              <AlertCircle size={14} className="text-indigo-400" />
-              <span className="text-sm font-bold tracking-tight">{toast}</span>
+              <AlertCircle size={14} />
+              <span className="text-sm">{toast}</span>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Background Glows */}
-      <div className="fixed top-[-10%] left-[-20%] w-[100%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full -z-10" />
-      <div className="fixed bottom-[-10%] right-[-20%] w-[80%] h-[30%] bg-emerald-600/5 blur-[100px] rounded-full -z-10" />
-
       {/* Branding */}
-      <motion.div className="mb-12 text-center">
-        <div className="w-16 h-16 bg-white/[0.03] border border-white/10 rounded-[2.2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-500/10">
-          <Sparkles className="text-indigo-500" size={28} />
-        </div>
-        <h1 className="text-4xl font-black tracking-tighter bg-gradient-to-b from-white to-gray-500 bg-clip-text text-transparent leading-none">
-          Expensio.
-        </h1>
-      </motion.div>
+      <div className="text-center mb-10">
+        <Sparkles className="mx-auto text-indigo-500 mb-3" size={28} />
+        <h1 className="text-3xl font-bold">Expensio</h1>
+      </div>
 
-      <div className="space-y-5">
-        <h2 className="text-center text-xl font-bold tracking-tight">
-          {isSignup ? "Create Account" : "Welcome Back"}
+      <div className="space-y-4">
+
+        <h2 className="text-center text-lg font-semibold">
+          {isSignup ? "Create Account" : "Login"}
         </h2>
 
-        {/* Email Input */}
-        <div className="relative group">
-          <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+        {/* Email */}
+        <div className="relative">
+          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
           <input
             type="email"
-            placeholder="Email Address"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-white/[0.03] border border-white/5 p-5 pl-14 rounded-[1.8rem] text-sm font-bold outline-none focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all placeholder:text-gray-700"
+            className="w-full p-4 pl-12 rounded-xl bg-white/10 outline-none"
           />
         </div>
 
-        {/* Password Input with Eye Toggle */}
-        <div className="relative group">
-          <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+        {/* Password */}
+        <div className="relative">
+          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
           <input
             type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-white/[0.03] border border-white/5 p-5 pl-14 pr-14 rounded-[1.8rem] text-sm font-bold outline-none focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all placeholder:text-gray-700"
+            className="w-full p-4 pl-12 pr-12 rounded-xl bg-white/10 outline-none"
           />
-          {/* 👁️ Eye Button */}
-          <button 
-            type="button"
+
+          <button
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
           >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
 
-        {/* Submit Button */}
+        {/* Button */}
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-white text-black p-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex justify-center items-center gap-2 active:scale-[0.97] transition-all shadow-xl shadow-white/5 disabled:opacity-50"
+          className="w-full bg-white text-black p-4 rounded-xl font-bold flex justify-center items-center gap-2"
         >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : (
+          {loading ? <Loader2 className="animate-spin" size={16} /> : (
             <>
               {isSignup ? "Sign Up" : "Login"}
-              <ArrowRight size={16} />
+              <ArrowRight size={14} />
             </>
           )}
         </button>
 
-        {/* Toggle Signup/Login */}
-        <div className="text-center pt-2">
+        {/* Toggle */}
+        <div className="text-center">
           <button
-            onClick={() => {
-              setIsSignup(!isSignup);
-              setShowPassword(false); // Reset eye on toggle
-            }}
-            className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+            onClick={() => setIsSignup(!isSignup)}
+            className="text-sm text-gray-400"
           >
-            {isSignup ? "Already have an account? " : "New to Expensio? "}
-            <span className="text-indigo-500 ml-1">
-              {isSignup ? "Login" : "Sign Up"}
-            </span>
+            {isSignup ? "Already have an account? Login" : "Create new account"}
           </button>
         </div>
-      </div>
 
-      {/* Footer Info */}
-      <div className="absolute bottom-10 left-0 right-0 text-center opacity-10 pointer-events-none">
-        <p className="text-[8px] font-black uppercase tracking-[0.5em]">Expensio v1.0.4 • Local Sync</p>
       </div>
     </div>
   );

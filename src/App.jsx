@@ -155,7 +155,7 @@ function App() {
 
           <Route
             path="/history"
-            element={<History expenses={expenses} />}
+            element={<History expenses={expenses}  onDelete={deleteExpense}/>}
           />
 
           <Route

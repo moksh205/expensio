@@ -3,108 +3,107 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Utensils, Bike, ShoppingCart, Receipt, 
   Plus, Coffee, Package, MoreHorizontal, Calendar, 
-  ChevronRight, ChevronLeft, Trash2 
+  ChevronRight, ChevronLeft, Trash2, Clock
 } from "lucide-react";
 
 export default function History({ expenses = [], onDelete }) {
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
-  
+
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
   const categoryIcons = {
-    Food: <Utensils size={14} className="text-orange-400" />,
-    Ride: <Bike size={14} className="text-blue-400" />,
-    Blinkit: <Package size={14} className="text-yellow-400" />,
-    Zomato: <Plus size={14} className="text-red-400" />,
-    Shopping: <ShoppingCart size={14} className="text-purple-400" />,
-    Bills: <Receipt size={14} className="text-emerald-400" />,
-    Juice: <Coffee size={14} className="text-pink-400" />,
-    Other: <MoreHorizontal size={14} className="text-gray-400" />,
+    Food: { icon: <Utensils size={14} />, color: "text-orange-400 bg-orange-500/10" },
+    Ride: { icon: <Bike size={14} />, color: "text-blue-400 bg-blue-500/10" },
+    Blinkit: { icon: <Package size={14} />, color: "text-yellow-400 bg-yellow-500/10" },
+    Zomato: { icon: <Plus size={14} />, color: "text-red-400 bg-red-500/10" },
+    Shopping: { icon: <ShoppingCart size={14} />, color: "text-purple-400 bg-purple-500/10" },
+    Bills: { icon: <Receipt size={14} />, color: "text-emerald-400 bg-emerald-500/10" },
+    Juice: { icon: <Coffee size={14} />, color: "text-pink-400 bg-pink-500/10" },
+    Other: { icon: <MoreHorizontal size={14} />, color: "text-gray-400 bg-gray-500/10" },
   };
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // 🔥 FILTER LOGIC (Handles Supabase ISO strings or guest IDs)
+  const getDate = (exp) => new Date(exp.created_at || exp.id);
+
   const filteredExpenses = expenses.filter(exp => {
-    const d = new Date(exp.created_at || exp.id);
-    return d.getMonth() === selectedMonth && 
-           d.getFullYear() === selectedYear && 
-           (activeCategory === "All" || exp.category === activeCategory);
+    const d = getDate(exp);
+    return (
+      d.getMonth() === selectedMonth &&
+      d.getFullYear() === selectedYear &&
+      (activeCategory === "All" || exp.category === activeCategory)
+    );
   });
 
-  // 🔥 GROUP BY DATE
   const grouped = filteredExpenses.reduce((acc, exp) => {
-    const dateKey = new Date(exp.created_at || exp.id).toISOString().split('T')[0];
-    if (!acc[dateKey]) acc[dateKey] = { items: [], total: 0 };
-    acc[dateKey].items.push(exp);
-    acc[dateKey].total += Number(exp.amount);
+    const key = getDate(exp).toISOString().split('T')[0];
+    if (!acc[key]) acc[key] = { items: [], total: 0 };
+    acc[key].items.push(exp);
+    acc[key].total += Number(exp.amount);
     return acc;
   }, {});
 
   const dates = Object.keys(grouped).sort().reverse();
   const monthTotal = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const handleMonthChange = (direction) => {
-    if (direction === 'next') {
+  const handleMonthChange = (dir) => {
+    if (dir === 'next') {
       if (selectedMonth === 11) {
         setSelectedMonth(0);
         setSelectedYear(prev => prev + 1);
-      } else {
-        setSelectedMonth(prev => prev + 1);
-      }
+      } else setSelectedMonth(prev => prev + 1);
     } else {
       if (selectedMonth === 0) {
         setSelectedMonth(11);
         setSelectedYear(prev => prev - 1);
-      } else {
-        setSelectedMonth(prev => prev - 1);
-      }
+      } else setSelectedMonth(prev => prev - 1);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
       
-      {/* 1. Header */}
-      <header className="flex justify-between items-end mb-8">
+      {/* Header */}
+      <header className="flex justify-between items-end mb-10">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Activity</h1>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-black mt-1">History & Logs</p>
+          <h1 className="text-3xl font-black tracking-tighter italic">Activity.</h1>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-bold mt-1">Timeline</p>
         </div>
         <div className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-2xl text-right">
-            <p className="text-[8px] uppercase tracking-widest text-indigo-400 font-black">Total Spent</p>
-            <p className="text-lg font-bold text-white">₹{monthTotal.toLocaleString('en-IN')}</p>
+          <p className="text-[8px] uppercase tracking-widest text-indigo-400 font-black">Monthly Burn</p>
+          <p className="text-lg font-bold">₹{monthTotal.toLocaleString('en-IN')}</p>
         </div>
       </header>
 
-      {/* 2. Filter Section */}
-      <section className="mb-10">
+      {/* Month Navigator */}
+      <section className="mb-8">
         <div className="flex items-center justify-between mb-6 px-2">
-          <button onClick={() => handleMonthChange('prev')} className="text-gray-600 hover:text-white transition-colors p-2 bg-white/5 rounded-full">
+          <button onClick={() => handleMonthChange("prev")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors">
             <ChevronLeft size={18} />
           </button>
-          <div className="text-center group cursor-pointer">
-            <h3 className="text-sm font-black tracking-wide uppercase">{months[selectedMonth]} {selectedYear}</h3>
-            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mx-auto mt-1 animate-pulse" />
+          <div className="text-center">
+            <h3 className="text-sm font-black tracking-widest uppercase">{months[selectedMonth]} {selectedYear}</h3>
+            <div className="w-1 h-1 bg-indigo-500 rounded-full mx-auto mt-1" />
           </div>
-          <button onClick={() => handleMonthChange('next')} className="text-gray-600 hover:text-white transition-colors p-2 bg-white/5 rounded-full">
+          <button onClick={() => handleMonthChange("next")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors">
             <ChevronRight size={18} />
           </button>
         </div>
 
+        {/* Category Pills */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-6 px-6">
-          {categories.map((cat) => (
+          {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-5 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+              className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
                 activeCategory === cat 
-                ? "bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.1)] scale-95" 
-                : "bg-white/[0.03] border border-white/5 text-gray-500"
+                ? "bg-white text-black border-white shadow-xl scale-95" 
+                : "bg-white/[0.03] border-white/5 text-gray-500"
               }`}
             >
               {cat}
@@ -113,7 +112,7 @@ export default function History({ expenses = [], onDelete }) {
         </div>
       </section>
 
-      {/* 3. Transaction List */}
+      {/* List */}
       <div className="space-y-10">
         <AnimatePresence mode="popLayout">
           {dates.length === 0 ? (
@@ -121,59 +120,68 @@ export default function History({ expenses = [], onDelete }) {
                <div className="w-16 h-16 bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
                   <Calendar size={24} className="text-gray-800" />
                </div>
-               <p className="text-xs font-bold uppercase tracking-widest text-gray-600">No logs for this period</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">No logs found</p>
             </motion.div>
           ) : (
-            dates.map((date) => (
-              <motion.div layout key={date} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="flex items-center gap-4 mb-4 px-1">
+            dates.map(date => (
+              <motion.div layout key={date} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <div className="flex items-center gap-4 mb-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">
                     {new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                   </span>
                   <div className="h-[1px] flex-1 bg-white/5" />
-                  <span className="text-[10px] font-black text-gray-500 tracking-tighter">TOTAL ₹{grouped[date].total}</span>
+                  <span className="text-[10px] font-bold text-gray-700 font-mono">₹{grouped[date].total}</span>
                 </div>
 
                 <div className="space-y-3">
-                  {grouped[date].items.map((exp) => {
-                    const isSelected = selectedId === exp.id;
+                  {grouped[date].items.map(item => {
+                    const categoryData = categoryIcons[item.category] || categoryIcons.Other;
+                    const isSelected = selectedId === item.id;
+                    
                     return (
-                      <div key={exp.id} className="relative overflow-hidden rounded-[1.8rem]">
-                        
-                        {/* 🔹 DELETE BUTTON (Always underneath) */}
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); onDelete(exp.id); }}
-                          className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex items-center justify-center text-white z-10 active:bg-red-700 transition-colors shadow-inner"
+                      <motion.div
+                        layout
+                        key={item.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="relative"
+                      >
+                        {/* Hidden Delete Action (Copied from Home) */}
+                        <button
+                          onClick={() => {
+                            onDelete(item.id);
+                            setSelectedId(null);
+                          }}
+                          className="absolute right-0 inset-y-0 w-16 bg-red-500 flex items-center justify-center rounded-2xl text-white shadow-lg shadow-red-500/20"
                         >
                           <Trash2 size={20} />
                         </button>
 
-                        {/* 🔹 SLIDING CARD */}
+                        {/* Foreground Card (Copied from Home) */}
                         <motion.div
-                          layout
-                          onClick={() => setSelectedId(isSelected ? null : exp.id)}
-                          animate={{ x: isSelected ? -80 : 0 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 35 }}
-                          className={`relative z-20 bg-[#0c0c0c] border border-white/5 p-4 flex justify-between items-center cursor-pointer ${
-                            isSelected ? "border-red-500/20" : ""
-                          }`}
+                          animate={{ x: isSelected ? -70 : 0 }}
+                          onClick={() => setSelectedId(isSelected ? null : item.id)}
+                          className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
                         >
                           <div className="flex items-center gap-4">
-                            <div className="w-11 h-11 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center shadow-inner">
-                              {categoryIcons[exp.category] || categoryIcons.Other}
+                            <div className={`p-2.5 rounded-xl ${categoryData.color} transition-transform ${isSelected ? 'scale-90' : ''}`}>
+                              {categoryData.icon}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-gray-200 tracking-tight">{exp.note || exp.category}</p>
-                              <p className="text-[9px] text-gray-600 uppercase font-black tracking-[0.15em] mt-0.5">{exp.category}</p>
+                              <p className="text-sm font-bold text-gray-200 tracking-tight leading-tight">
+                                {item.note || item.category}
+                              </p>
+                              <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
+                                <Clock size={8} /> {item.category}
+                              </p>
                             </div>
                           </div>
-
-                          {/* 🔹 AMOUNT */}
-                          <div className={`transition-all duration-300 ${isSelected ? 'opacity-0 -translate-x-4' : 'opacity-100'}`}>
-                            <span className="text-base font-black tracking-tight text-white">₹{exp.amount}</span>
+                          <div className={`transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
+                            <p className="font-black text-white text-base">₹{item.amount}</p>
                           </div>
                         </motion.div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
