@@ -62,6 +62,7 @@ export default function AddExpense({ addExpense }) {
             amount: expenseData.amount,
             category: expenseData.category,
             note: expenseData.note,
+created_at: new Date().toISOString(),
           },
         ])
         .select();
