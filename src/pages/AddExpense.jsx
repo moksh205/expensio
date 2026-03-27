@@ -27,6 +27,7 @@ export default function AddExpense({ addExpense }) {
     const finalNote = selectedCategory === "Other" ? customNote : selectedCategory;
     
     addExpense({
+      id: Date.now(),
       amount: Number(amount),
       category: selectedCategory,
       note: finalNote,
