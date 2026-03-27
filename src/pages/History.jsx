@@ -28,7 +28,6 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // Filter Logic
   const filteredExpenses = expenses.filter(exp => {
     const d = new Date(exp.date);
     return d.getMonth() === selectedMonth && 
@@ -49,7 +48,7 @@ export default function History({ expenses = [], onDelete }) {
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
       
-      {/* 1. Sleek Header */}
+      {/* 1. Header */}
       <header className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Activity</h1>
@@ -61,9 +60,8 @@ export default function History({ expenses = [], onDelete }) {
         </div>
       </header>
 
-      {/* 2. Integrated Filter Section */}
+      {/* 2. Filter Section */}
       <section className="mb-10">
-        {/* Period Selector (No Box, Just clean text) */}
         <div className="flex items-center justify-between mb-6 px-2">
           <button onClick={() => setSelectedMonth(prev => prev === 0 ? 11 : prev - 1)} className="text-gray-600 hover:text-white transition-colors">
             <ChevronLeft size={20} />
@@ -77,7 +75,6 @@ export default function History({ expenses = [], onDelete }) {
           </button>
         </div>
 
-        {/* Categories (No scrollbar shown) */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-6 px-6">
           {categories.map((cat) => (
             <button
@@ -108,7 +105,6 @@ export default function History({ expenses = [], onDelete }) {
           ) : (
             dates.map((date) => (
               <div key={date}>
-                {/* Minimal Date Header */}
                 <div className="flex items-center gap-4 mb-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">
                     {new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
@@ -117,38 +113,49 @@ export default function History({ expenses = [], onDelete }) {
                   <span className="text-[10px] font-bold text-gray-700">₹{grouped[date].total}</span>
                 </div>
 
-                {/* Cards */}
                 <div className="space-y-3">
-                  {grouped[date].items.map((exp) => (
-                    <div key={exp.id} className="relative group">
-                      <motion.div
-                        layout
-                        onClick={() => setSelectedId(selectedId === exp.id ? null : exp.id)}
-                        className={`relative z-20 bg-white/[0.02] border border-white/5 p-4 rounded-[1.8rem] flex justify-between items-center transition-all cursor-pointer ${
-                          selectedId === exp.id ? "-translate-x-16 border-white/10" : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center">
-                            {categoryIcons[exp.category] || categoryIcons.Other}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-200">{exp.note || exp.category}</p>
-                            <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-0.5">{exp.category}</p>
-                          </div>
-                        </div>
-                        <span className="text-lg font-bold tracking-tight">₹{exp.amount}</span>
-                      </motion.div>
+                  {grouped[date].items.map((exp) => {
+                    const isSelected = selectedId === exp.id;
+                    return (
+                      <div key={exp.id} className="relative overflow-hidden rounded-[1.8rem]">
+                        
+                        {/* 🔹 DELETE BUTTON (Always underneath) */}
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onDelete(exp.id); }}
+                          className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex items-center justify-center text-white z-10 active:bg-red-700 transition-colors"
+                        >
+                          <Trash2 size={20} />
+                        </button>
 
-                      {/* 🔹 The Delete Button (Hidden behind the card) */}
-                      <button 
-                        onClick={() => onDelete(exp.id)}
-                        className="absolute right-0 top-0 bottom-0 w-14 bg-red-500 rounded-[1.8rem] flex items-center justify-center text-white z-10 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
-                  ))}
+                        {/* 🔹 SLIDING CARD */}
+                        <motion.div
+                          layout
+                          onClick={() => setSelectedId(isSelected ? null : exp.id)}
+                          animate={{ x: isSelected ? -80 : 0 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                          /* CRITICAL: bg-[#0a0a0a] makes the card solid so the button doesn't bleed through */
+                          className={`relative z-20 bg-[#0a0a0a] border border-white/5 p-4 flex justify-between items-center transition-colors cursor-pointer ${
+                            isSelected ? "border-white/10" : ""
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center">
+                              {categoryIcons[exp.category] || categoryIcons.Other}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-200">{exp.note || exp.category}</p>
+                              <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-0.5">{exp.category}</p>
+                            </div>
+                          </div>
+
+                          {/* 🔹 AMOUNT (Fades out when sliding to prevent overlap) */}
+                          <div className={`transition-all duration-200 ${isSelected ? 'opacity-0 translate-x-4' : 'opacity-100'}`}>
+                            <span className="text-lg font-bold tracking-tight">₹{exp.amount}</span>
+                          </div>
+                        </motion.div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))
@@ -156,7 +163,6 @@ export default function History({ expenses = [], onDelete }) {
         </AnimatePresence>
       </div>
 
-      {/* Global Style to hide scrollbar */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

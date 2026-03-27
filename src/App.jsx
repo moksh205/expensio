@@ -24,7 +24,9 @@ const deleteExpense = (id) => {
           onDelete={deleteExpense}
           username={user}/>} />
           <Route path="/add" element={<AddExpense addExpense={addExpense} />} />
-          <Route path="/history" element={<History expenses={expenses} />} />
+          <Route path="/history" element={<History expenses={expenses} 
+          onDelete={deleteExpense}
+          />} />
           <Route path="/profile" element={<Profile expenses={expenses} />} />
         </Routes>
 
