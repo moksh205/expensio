@@ -2,14 +2,18 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Utensils, Bike, ShoppingCart, Receipt, 
-  Plus, Coffee, Package, MoreHorizontal, CheckCircle2 
+  Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2 
 } from "lucide-react";
+
+// 🔥 Supabase
+import { supabase } from "../supabase";
 
 export default function AddExpense({ addExpense }) {
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [customNote, setCustomNote] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const categories = [
     { name: "Food", icon: <Utensils size={18} />, color: "bg-orange-500/20 text-orange-400" },
@@ -22,30 +26,68 @@ export default function AddExpense({ addExpense }) {
     { name: "Other", icon: <MoreHorizontal size={18} />, color: "bg-gray-500/20 text-gray-400" },
   ];
 
-  const handleAdd = () => {
-    if (!amount || !selectedCategory) return;
-    const finalNote = selectedCategory === "Other" ? customNote : selectedCategory;
-    
-    addExpense({
-      id: Date.now(),
-      amount: Number(amount),
-      category: selectedCategory,
-      note: finalNote,
-      date: new Date().toISOString().split("T")[0],
-    });
+ const handleAdd = async () => {
+  if (!amount || !selectedCategory) return;
+  setLoading(true);
 
-    // 🔹 Show Success Feedback
+  const finalNote = selectedCategory === "Other" ? customNote : selectedCategory;
+
+  const expenseData = {
+    id: Date.now(),
+    amount: Number(amount),
+    category: selectedCategory,
+    note: finalNote,
+    created_at: new Date().toISOString(),
+  };
+
+  try {
+    // 🔥 Get user
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      // 🟡 GUEST MODE → save locally
+      const guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
+      guestData.push(expenseData);
+
+      localStorage.setItem("guest_expenses", JSON.stringify(guestData));
+
+      addExpense(expenseData);
+    } else {
+      
+      const { data: insertedData, error } = await supabase
+        .from("expenses")
+        .insert([
+          {
+            user_id: user.id,
+            amount: expenseData.amount,
+            category: expenseData.category,
+            note: expenseData.note,
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+
+      addExpense(insertedData[0]);
+    }
+
+    // ✅ Success UI
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-
-    // Reset fields
     setAmount("");
     setSelectedCategory("");
     setCustomNote("");
-  };
+
+    setTimeout(() => setShowToast(false), 3000);
+
+  } catch (err) {
+    console.error("Error saving:", err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
-    <div className="relative p-6 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-hidden">
+    <div className="relative p-6 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-hidden font-sans">
       
       {/* 🔹 SUCCESS TOAST POPUP */}
       <AnimatePresence>
@@ -54,7 +96,7 @@ export default function AddExpense({ addExpense }) {
             initial={{ opacity: 0, y: -100, x: "-50%" }}
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: -100, x: "-50%" }}
-            className="fixed top-6 left-1/2 z-[100] w-[90%] max-w-xs"
+            className="fixed top-6 left-1/2 z-[100] w-[90%] max-w-xs pointer-events-none"
           >
             <div className="bg-emerald-500/10 border border-emerald-500/50 backdrop-blur-xl p-4 rounded-3xl flex items-center gap-3 shadow-[0_20px_40px_rgba(16,185,129,0.2)]">
               <div className="bg-emerald-500 rounded-full p-1">
@@ -62,7 +104,7 @@ export default function AddExpense({ addExpense }) {
               </div>
               <div>
                 <p className="text-sm font-bold text-emerald-400">Saved Successfully</p>
-                <p className="text-[10px] text-emerald-500/60 uppercase tracking-widest font-bold">Transaction Added</p>
+                <p className="text-[10px] text-emerald-500/60 uppercase tracking-widest font-bold">Cloud Synced</p>
               </div>
             </div>
           </motion.div>
@@ -88,7 +130,7 @@ export default function AddExpense({ addExpense }) {
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-3 font-bold">Transaction Amount</p>
       </div>
 
-      {/* Dynamic Typing Option (Directly under Amount) */}
+      {/* Dynamic Typing Option */}
       <div className="min-h-[85px]">
         <AnimatePresence mode="wait">
           {selectedCategory === "Other" && (
@@ -110,11 +152,10 @@ export default function AddExpense({ addExpense }) {
         </AnimatePresence>
       </div>
 
-      {/* Categories Grid with Dynamic Glow */}
+      {/* Categories Grid */}
       <div className="grid grid-cols-2 gap-3 mb-10 mt-2">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.name;
-          
           return (
             <button
               key={cat.name}
@@ -125,23 +166,17 @@ export default function AddExpense({ addExpense }) {
                   : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
               }`}
             >
-              {isActive && (
-                <div className="absolute inset-0 bg-white/5 animate-pulse" />
-              )}
-
+              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
               <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
                 {cat.icon}
               </div>
-              
               <span className={`relative z-10 text-sm font-medium transition-colors ${isActive ? "text-white" : "text-gray-500"}`}>
                 {cat.name}
               </span>
-
               {isActive && (
                 <motion.div 
                   layoutId="active-selection-indicator"
                   className="absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_white]"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
             </button>
@@ -152,16 +187,21 @@ export default function AddExpense({ addExpense }) {
       {/* Main Action Button */}
       <motion.button
         whileTap={{ scale: 0.94 }}
-        whileHover={amount && selectedCategory ? { scale: 1.02, translateY: -2 } : {}}
         onClick={handleAdd}
-        disabled={!amount || !selectedCategory}
-        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 shadow-2xl ${
-          amount && selectedCategory
+        disabled={!amount || !selectedCategory || loading}
+        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 shadow-2xl flex items-center justify-center gap-2 ${
+          amount && selectedCategory && !loading
             ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-indigo-500/25 cursor-pointer"
             : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
         }`}
       >
-        {showToast ? "Saved! ✓" : "Save Transaction"}
+        {loading ? (
+          <Loader2 className="animate-spin" size={24} />
+        ) : showToast ? (
+          "Saved! ✓"
+        ) : (
+          "Save Transaction"
+        )}
       </motion.button>
     </div>
   );

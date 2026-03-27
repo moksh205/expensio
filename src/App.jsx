@@ -7,44 +7,128 @@ import BottomNav from "./components/BottomNav";
 import Profile from "./pages/Profile";
 import LoginSignup from "./pages/LoginSignup";
 
+// 🔥 Supabase
+import { supabase } from "./supabase";
+
 function App() {
   const [expenses, setExpenses] = useState([]);
   const [user, setUser] = useState(null);
 
-  // ✅ load user 
+  // 🔥 Get logged-in user
   useEffect(() => {
-    const savedUser = localStorage.getItem("username");
-    if (savedUser) setUser(savedUser);
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+    };
+
+    getUser();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
-  // ✅ add expense
+  // 🔥 Fetch expenses (DB OR Guest)
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      if (!user) {
+        // 🟡 Guest → load from localStorage
+        const guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
+        setExpenses(guestData.reverse());
+        return;
+      }
+
+      // 🟢 Logged-in → load from DB
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!error) {
+        setExpenses(data);
+      }
+    };
+
+    fetchExpenses();
+  }, [user]);
+
+  // ✅ add expense (UI only)
   const addExpense = (expense) => {
-    setExpenses((prev) => [...prev, expense]);
+    setExpenses((prev) => [expense, ...prev]);
   };
 
-  // ✅ delete expense
-  const deleteExpense = (id) => {
+  // 🔥 delete (guest + user)
+  const deleteExpense = async (id) => {
+    if (!user) {
+      // 🟡 Guest delete
+      const guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
+      const updated = guestData.filter((e) => e.id !== id);
+      localStorage.setItem("guest_expenses", JSON.stringify(updated));
+      setExpenses(updated.reverse());
+      return;
+    }
+
+    // 🟢 DB delete
+    await supabase.from("expenses").delete().eq("id", id);
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
-  // ✅ reset data
-  const resetData = () => {
-    setExpenses([]);
-    if (user) {
-      localStorage.removeItem(`expenses_${user}`);
+  // 🔥 reset (guest + user)
+  const resetData = async () => {
+    if (!user) {
+      localStorage.removeItem("guest_expenses");
+      setExpenses([]);
+      return;
     }
+
+    await supabase.from("expenses").delete().eq("user_id", user.id);
+    setExpenses([]);
   };
 
-  // ✅ login
-  const handleLogin = (name) => {
-    if (!name) return;
-    localStorage.setItem("username", name);
-    setUser(name);
+  // 🔥 SYNC FUNCTION (CORE FEATURE)
+  const syncGuestData = async (user) => {
+    const guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
+
+    if (guestData.length === 0) return;
+
+    const formatted = guestData.map((e) => ({
+      user_id: user.id,
+      amount: e.amount,
+      category: e.category,
+      note: e.note,
+    }));
+
+    await supabase.from("expenses").insert(formatted);
+
+    localStorage.removeItem("guest_expenses");
   };
 
-  // ✅ logout
-  const handleLogout = () => {
-    localStorage.removeItem("username");
+  // 🔥 login + sync
+  const handleLogin = async (supabaseUser) => {
+  setUser(supabaseUser);
+
+  // 🔥 sync guest data
+  await syncGuestData(supabaseUser);
+
+  // 🔥 fetch fresh data from DB
+  const { data, error } = await supabase
+    .from("expenses")
+    .select("*")
+    .eq("user_id", supabaseUser.id)
+    .order("created_at", { ascending: false });
+
+  if (!error) {
+    setExpenses(data);
+  }
+};
+  // 🔥 logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 
@@ -59,14 +143,20 @@ function App() {
               <Home
                 expenses={expenses}
                 onDelete={deleteExpense}
-                username={user}
+                username={user?.email || "Guest"}
               />
             }
           />
 
-          <Route path="/add" element={<AddExpense addExpense={addExpense} />} />
+          <Route
+            path="/add"
+            element={<AddExpense addExpense={addExpense} />}
+          />
 
-          <Route path="/history" element={<History expenses={expenses} />} />
+          <Route
+            path="/history"
+            element={<History expenses={expenses} />}
+          />
 
           <Route
             path="/profile"
@@ -80,10 +170,13 @@ function App() {
               />
             }
           />
-          <Route path="/login" element={<LoginSignup onLogin={handleLogin} />} />
+
+          <Route
+            path="/login"
+            element={<LoginSignup onLogin={handleLogin} />}
+          />
         </Routes>
 
-        
         <BottomNav />
       </div>
     </BrowserRouter>
