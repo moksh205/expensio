@@ -28,14 +28,16 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // ✅ SMART NORMALIZE (Now includes coconut, coffee, tea, etc.)
+  // ✅ UPGRADED NORMALIZE
   const normalizeCategory = (exp) => {
     const text = `${exp.category || ""} ${exp.note || ""}`.toLowerCase();
 
     if (text.includes("blinkit")) return "Blinkit";
-    if (text.includes("zomato")) return "Zomato";
     if (text.includes("juice") || text.includes("coconut") || text.includes("drink") || text.includes("coffee") || text.includes("tea")) return "Juice";
-    if (text.includes("food") || text.includes("lunch") || text.includes("dinner") || text.includes("snack")) return "Food";
+    
+    // Zomato and Meal merged into Food for broader coverage
+    if (text.includes("food") || text.includes("zomato") || text.includes("meal") || text.includes("lunch") || text.includes("dinner") || text.includes("snack")) return "Food";
+    
     if (text.includes("ride") || text.includes("metro") || text.includes("uber") || text.includes("rapido") || text.includes("auto")) return "Ride";
     if (text.includes("electricity") || text.includes("bill") || text.includes("recharge")) return "Bills";
     if (text.includes("shopping") || text.includes("amazon") || text.includes("flipkart") || text.includes("myntra")) return "Shopping";
@@ -46,7 +48,7 @@ export default function History({ expenses = [], onDelete }) {
     return validCategories.includes(fallbackCat) ? fallbackCat : "Other";
   };
 
-  // 🔥 THE FIX: Safe and Clean Date Parsing (No UUID fallback)
+  // Safe and Clean Date Parsing
   const getDate = (exp) => {
     const rawDate = exp.created_at || exp.date;
     if (!rawDate) return null;
@@ -69,12 +71,13 @@ export default function History({ expenses = [], onDelete }) {
     );
   });
 
-  // Grouping
+  // ✅ CRITICAL FIX: Timezone-Proof Grouping
   const grouped = filteredExpenses.reduce((acc, exp) => {
     const d = getDate(exp);
     if (!d) return acc;
 
-    const key = d.toLocaleDateString("en-CA"); 
+    // Manual padding ensures perfect YYYY-MM-DD every time, regardless of local time shifts
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     if (!acc[key]) acc[key] = { items: [], total: 0 };
     acc[key].items.push(exp);
@@ -106,6 +109,157 @@ export default function History({ expenses = [], onDelete }) {
       {/* Background Ambient Glow */}
       <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
 
+      {/* Header */}
+      <header className="flex justify-between items-end mb-10">
+        <div>
+          <h1 className="text-3xl font-black tracking-tighter italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Activity.</h1>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-bold mt-1">Timeline</p>
+        </div>
+        <div className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-2xl text-right">
+          <p className="text-[8px] uppercase tracking-widest text-indigo-400 font-black">Monthly Burn</p>
+          <p className="text-lg font-bold">₹{monthTotal.toLocaleString('en-IN')}</p>
+        </div>
+      </header>
+
+      {/* Month Navigator */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-6 px-2">
+          <button onClick={() => handleMonthChange("prev")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors active:scale-90">
+            <ChevronLeft size={18} />
+          </button>
+          <div className="text-center">
+            <h3 className="text-sm font-black tracking-widest uppercase">{months[selectedMonth]} {selectedYear}</h3>
+            <div className="w-1 h-1 bg-indigo-500 rounded-full mx-auto mt-1" />
+          </div>
+          <button onClick={() => handleMonthChange("next")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors active:scale-90">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-6 px-6">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => {
+                setActiveCategory(cat);
+                setSelectedId(null); 
+              }}
+              className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
+                activeCategory === cat 
+                ? "bg-white text-black border-white shadow-xl scale-95" 
+                : "bg-white/[0.03] border-white/5 text-gray-500 active:bg-white/10"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* List */}
+      <div className="space-y-10">
+        <AnimatePresence mode="popLayout">
+          {dates.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20">
+               <div className="w-16 h-16 bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
+                  <Calendar size={24} className="text-gray-800" />
+               </div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">No logs found</p>
+            </motion.div>
+          ) : (
+            dates.map(date => {
+              // ✅ CRITICAL FIX: Safe Display Date Parsing
+              const [year, month, day] = date.split("-");
+              const displayDate = new Date(year, month - 1, day);
+
+              return (
+                <motion.div layout key={date} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  
+                  {/* Date Header */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">
+                      {displayDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </span>
+                    <div className="h-[1px] flex-1 bg-white/5" />
+                    <span className="text-[10px] font-bold text-gray-700 font-mono tracking-tighter">
+                      ₹{grouped[date].total.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Transactions */}
+                  <div className="space-y-3">
+                    <AnimatePresence mode="popLayout">
+                      {grouped[date].items.map(item => {
+                        const normalized = normalizeCategory(item);
+                        const categoryData = categoryIcons[normalized] || categoryIcons.Other;
+                        const isSelected = selectedId === item.id;
+                        
+                        return (
+                          <motion.div
+                            layout
+                            key={item.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                            className="relative overflow-hidden rounded-[1.8rem]"
+                          >
+                            {/* Swipe-to-Delete Action */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(item.id);
+                                setSelectedId(null);
+                              }}
+                              className="absolute right-0 inset-y-0 w-20 bg-red-600 flex items-center justify-center text-white active:bg-red-700 transition-colors z-0"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+
+                            {/* Foreground Card */}
+                            <motion.div
+                              layout
+                              animate={{ x: isSelected ? -80 : 0 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                              onClick={() => setSelectedId(isSelected ? null : item.id)}
+                              className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 flex justify-between items-center cursor-pointer active:bg-white/[0.02] transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`p-2.5 rounded-2xl ${categoryData.color} transition-transform duration-300 ${isSelected ? 'scale-90' : ''}`}>
+                                  {categoryData.icon}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-sm tracking-tight leading-tight">
+                                    {item.note || normalized}
+                                  </p>
+                                  <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
+                                    <Clock size={8} /> {normalized}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className={`text-right transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
+                                <p className="font-black text-white text-base">₹{Number(item.amount).toLocaleString('en-IN')}</p>
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </AnimatePresence>
+      </div>
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </div>
+  );
+}
       {/* Header */}
       <header className="flex justify-between items-end mb-10">
         <div>
