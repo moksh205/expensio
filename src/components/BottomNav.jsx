@@ -21,23 +21,31 @@ export default function BottomNav() {
             <Link
               key={item.path}
               to={item.path}
-              className="relative flex-1 py-3 flex flex-col items-center justify-center outline-none"
+              className="relative flex-1 py-3.5 flex flex-col items-center justify-center outline-none"
             >
               {isActive && (
                 <motion.div
-                  layoutId="nav-pill"
-                  className="absolute inset-y-0 w-16 bg-white/5 rounded-[1.5rem] border border-white/10"
+                  layoutId="activeTab"
+                  className="absolute inset-y-0 w-16 bg-gradient-to-tr from-indigo-500/20 to-indigo-500/5 rounded-[1.5rem] border border-indigo-500/20"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
 
               <div
                 className={`relative z-10 transition-all duration-300 ${
-                  isActive ? "text-white scale-110" : "text-gray-600 hover:text-gray-400"
+                  isActive ? "text-indigo-400 scale-110" : "text-gray-600 hover:text-gray-400"
                 }`}
               >
                 {item.icon}
               </div>
+
+              {isActive && (
+                <motion.div 
+                  layoutId="dot"
+                  className="absolute bottom-1 w-1 h-1 bg-indigo-400 rounded-full shadow-[0_0_10px_#818cf8]"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
             </Link>
           );
         })}
