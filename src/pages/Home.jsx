@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  TrendingUp, Calendar, Clock, 
+  TrendingUp, Clock, 
   Utensils, Bike, ShoppingCart, Receipt, 
-  Plus, Coffee, Package, MoreHorizontal, Trash2, X 
+  Plus, Coffee, Package, MoreHorizontal, Trash2
 } from 'lucide-react';
 
 export default function Home({ expenses = [], onDelete, username }) {
-  // Track which item is swiped/selected for deletion
   const [selectedId, setSelectedId] = useState(null);
+  const [showTotal, setShowTotal] = useState(false);
 
-  const today = new Date().toLocaleDateString("en-CA");
+  const todayStr = new Date().toLocaleDateString("en-CA");
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
@@ -27,61 +27,91 @@ export default function Home({ expenses = [], onDelete, username }) {
   };
 
   const monthlyTotal = expenses.reduce((sum, e) => {
-    const d = new Date(e.created_at || e.id); // fallback to id for guests
+    const d = new Date(e.created_at || e.date);
     return (d.getMonth() === currentMonth && d.getFullYear() === currentYear)
       ? sum + Number(e.amount)
       : sum;
   }, 0);
 
- const todayTotal = expenses
-  .filter((e) => {
-    const rawDate = e.created_at || e.date;
-    if (!rawDate) return false;
+  const overallTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-    const d = new Date(rawDate);
-    return d.toLocaleDateString("en-CA") === today;
-  })
-  .reduce((sum, e) => sum + Number(e.amount), 0);
+  const todayTotal = expenses
+    .filter((e) => {
+      const rawDate = e.created_at || e.date;
+      if (!rawDate) return false;
+      const d = new Date(rawDate);
+      return d.toLocaleDateString("en-CA") === todayStr;
+    })
+    .reduce((sum, e) => sum + Number(e.amount), 0);
 
   const recentTransactions = [...expenses]
-    .sort((a, b) => new Date(b.created_at || b.id) - new Date(a.created_at || a.id))
+    .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
     .slice(0, 5);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-5 py-8 pb-28 font-sans max-w-md mx-auto relative overflow-hidden">
       
+      {/* 🔹 Ambient Background Glow */}
+      <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10" />
+      <div className="fixed bottom-[10%] right-[-10%] w-[50%] h-[30%] bg-emerald-600/5 blur-[100px] rounded-full -z-10" />
+
       {/* Header */}
-      <header className="flex justify-between items-center mb-10">
+      <header className="flex justify-between items-center mb-10 px-1">
         <div>
           <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-black mb-0.5">Overview</p>
-          <h1 className="text-2xl font-bold tracking-tight italic">Expensio.</h1>
+          <h1 className="text-2xl font-bold tracking-tight italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Expensio.</h1>
         </div>
 
         <Link to="/profile" className="active:scale-90 transition-transform">
-          <div className="w-12 h-12 rounded-[1.3rem] bg-gradient-to-br from-white/10 to-white/[0.02] border border-white/10 flex items-center justify-center text-xs font-black shadow-xl text-indigo-400">
+          <div className="w-12 h-12 rounded-[1.3rem] bg-white/[0.03] border border-white/10 flex items-center justify-center text-xs font-black shadow-xl text-indigo-400">
             {username ? username.slice(0, 2).toUpperCase() : "GU"}
           </div>
         </Link>
       </header>
 
-      {/* Main Card */}
-      <div className="bg-gradient-to-br from-indigo-600/20 to-transparent border border-white/5 p-8 rounded-[2.5rem] mb-8 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
-            <TrendingUp size={40} className="text-indigo-500" />
+      {/* 🔥 Toggle Balance Card */}
+      <motion.div
+        onClick={() => setShowTotal(!showTotal)}
+        whileTap={{ scale: 0.97 }}
+        className="bg-gradient-to-br from-indigo-600/20 to-transparent border border-white/5 p-8 rounded-[2.5rem] mb-8 relative overflow-hidden group cursor-pointer"
+      >
+        <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
+          <TrendingUp size={40} className="text-indigo-500" />
         </div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 font-black mb-1">Spent this month</p>
-        <h2 className="text-5xl font-black tracking-tighter">₹{monthlyTotal.toLocaleString('en-IN')}</h2>
-      </div>
 
-      {/* Stats Row */}
+        <p className="text-[10px] uppercase tracking-[0.3em] text-indigo-400 font-black mb-2">
+          {showTotal ? "Lifetime Burn" : "Monthly Burn"}
+        </p>
+
+        <AnimatePresence mode="wait">
+          <motion.h2
+            key={showTotal ? "overall" : "monthly"}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-5xl font-black tracking-tighter"
+          >
+            ₹{(showTotal ? overallTotal : monthlyTotal).toLocaleString("en-IN")}
+          </motion.h2>
+        </AnimatePresence>
+
+        <div className="flex items-center gap-2 mt-4">
+           <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
+           <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">
+             Tap to switch view
+           </p>
+        </div>
+      </motion.div>
+
+      {/* Stats Bento Grid */}
       <div className="grid grid-cols-2 gap-4 mb-10">
-        <div className="bg-white/[0.03] border border-white/5 p-5 rounded-[1.8rem]">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Today</p>
-          <p className="text-xl font-black text-emerald-400">₹{todayTotal}</p>
+        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[1.8rem]">
+          <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold mb-1">Today</p>
+          <p className="text-xl font-black text-emerald-400">₹{todayTotal.toLocaleString("en-IN")}</p>
         </div>
 
-        <div className="bg-white/[0.03] border border-white/5 p-5 rounded-[1.8rem]">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Total Logs</p>
+        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[1.8rem]">
+          <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold mb-1">Total Logs</p>
           <p className="text-xl font-black text-white">{expenses.length}</p>
         </div>
       </div>
@@ -99,30 +129,32 @@ export default function Home({ expenses = [], onDelete, username }) {
             const isSelected = selectedId === item.id;
 
             return (
-              <motion.div
+              <motion.div 
+                key={item.id} 
                 layout
-                key={item.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="relative"
+                className="relative overflow-hidden rounded-[1.5rem]"
               >
-                {/* Delete Button (Hidden behind) */}
+                {/* 🔹 Delete Button (Always behind) */}
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onDelete(item.id);
                     setSelectedId(null);
                   }}
-                  className="absolute right-0 inset-y-0 w-16 bg-red-500 flex items-center justify-center rounded-2xl text-white shadow-lg shadow-red-500/20"
+                  className="absolute right-0 inset-y-0 w-20 bg-red-600 flex items-center justify-center text-white"
                 >
                   <Trash2 size={20} />
                 </button>
 
-                {/* Main Transaction Body */}
+                {/* 🔹 Sliding Card Body */}
                 <motion.div
-                  animate={{ x: isSelected ? -70 : 0 }}
+                  animate={{ x: isSelected ? -80 : 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 35 }}
                   onClick={() => setSelectedId(isSelected ? null : item.id)}
-                  className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
+                  className="relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 flex justify-between items-center cursor-pointer active:bg-white/[0.02] transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div className={`p-2.5 rounded-xl ${categoryData.color} transition-transform ${isSelected ? 'scale-90' : ''}`}>
@@ -131,16 +163,17 @@ export default function Home({ expenses = [], onDelete, username }) {
 
                     <div>
                       <p className="font-bold text-sm tracking-tight">{item.note || item.category}</p>
-                      <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
+                      <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-1.5 mt-1">
                         <Clock size={10} />
-                        {new Date(item.created_at || item.id).toLocaleDateString("en-IN", {
-                          day: "numeric", month: "short"
+                        {new Date(item.created_at || item.date).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
                         })}
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className={`text-right transition-all ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
                     <p className="font-black text-white">₹{item.amount}</p>
                   </div>
                 </motion.div>
@@ -150,8 +183,8 @@ export default function Home({ expenses = [], onDelete, username }) {
         </AnimatePresence>
         
         {recentTransactions.length === 0 && (
-          <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-[2rem]">
-            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">No entries yet</p>
+          <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-[2.5rem]">
+            <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest">No recent transactions</p>
           </div>
         )}
       </div>
