@@ -28,25 +28,23 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // ✅ FIXED NORMALIZE: Zomato gets its own category back!
+  // ✅ FIXED CATEGORY PRIORITY
   const normalizeCategory = (exp) => {
     const text = `${exp.category || ""} ${exp.note || ""}`.toLowerCase();
 
+    // Priority matters
     if (text.includes("blinkit")) return "Blinkit";
-    if (text.includes("zomato")) return "Zomato"; // 👈 Separated Zomato
+    if (text.includes("zomato")) return "Zomato"; // 👈 keep above food
     if (text.includes("juice") || text.includes("coconut") || text.includes("drink") || text.includes("coffee") || text.includes("tea")) return "Juice";
-    if (text.includes("food") || text.includes("meal") || text.includes("lunch") || text.includes("dinner") || text.includes("snack")) return "Food";
     if (text.includes("ride") || text.includes("metro") || text.includes("uber") || text.includes("rapido") || text.includes("auto")) return "Ride";
-    if (text.includes("electricity") || text.includes("bill") || text.includes("recharge")) return "Bills";
+    if (text.includes("bill") || text.includes("electricity") || text.includes("recharge")) return "Bills";
     if (text.includes("shopping") || text.includes("amazon") || text.includes("flipkart") || text.includes("myntra")) return "Shopping";
+    if (text.includes("food") || text.includes("meal") || text.includes("lunch") || text.includes("dinner") || text.includes("snack")) return "Food";
 
-    const valid = Object.keys(categoryIcons);
-    const fallback = exp.category ? exp.category.charAt(0).toUpperCase() + exp.category.slice(1) : "Other";
-
-    return valid.includes(fallback) ? fallback : "Other";
+    return "Other";
   };
 
-  // Safe Date
+  // ✅ SAFE DATE
   const getDate = (exp) => {
     const raw = exp.created_at || exp.date;
     if (!raw) return null;
@@ -55,7 +53,7 @@ export default function History({ expenses = [], onDelete }) {
     return isNaN(d.getTime()) ? null : d;
   };
 
-  // FILTER (Local Browser Timezone)
+  // ✅ FILTER
   const filteredExpenses = expenses.filter(exp => {
     const d = getDate(exp);
     if (!d) return false;
@@ -69,12 +67,12 @@ export default function History({ expenses = [], onDelete }) {
     );
   });
 
-  // GROUPING (Stable en-CA format)
+  // ✅ 🔥 FIXED GROUPING (NO LOCALE BUGS)
   const grouped = filteredExpenses.reduce((acc, exp) => {
     const d = getDate(exp);
     if (!d) return acc;
 
-    const key = d.toLocaleDateString("en-CA");
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     if (!acc[key]) acc[key] = { items: [], total: 0 };
     acc[key].items.push(exp);
@@ -101,47 +99,55 @@ export default function History({ expenses = [], onDelete }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
-      
-      {/* Background Ambient Glow */}
-      <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
+    <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto">
 
       {/* Header */}
-      <header className="flex justify-between items-end mb-10">
-        <div>
-          <h1 className="text-3xl font-black tracking-tighter italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Activity.</h1>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-bold mt-1">Timeline</p>
-        </div>
-        <div className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-2xl text-right">
-          <p className="text-[8px] uppercase tracking-widest text-indigo-400 font-black">Monthly Burn</p>
-          <p className="text-lg font-bold">₹{monthTotal.toLocaleString('en-IN')}</p>
-        </div>
+      <header className="flex justify-between mb-10">
+        <h1 className="text-3xl font-black italic">Activity.</h1>
+        <div>₹{monthTotal.toLocaleString('en-IN')}</div>
       </header>
 
-      {/* Month Navigator */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-6 px-2">
-          <button onClick={() => handleMonthChange("prev")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors active:scale-90">
-            <ChevronLeft size={18} />
-          </button>
-          <div className="text-center">
-            <h3 className="text-sm font-black tracking-widest uppercase">{months[selectedMonth]} {selectedYear}</h3>
-            <div className="w-1 h-1 bg-indigo-500 rounded-full mx-auto mt-1" />
-          </div>
-          <button onClick={() => handleMonthChange("next")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors active:scale-90">
-            <ChevronRight size={18} />
-          </button>
-        </div>
+      {/* Month */}
+      <div className="flex justify-between mb-6">
+        <button onClick={() => handleMonthChange("prev")}><ChevronLeft /></button>
+        <span>{months[selectedMonth]} {selectedYear}</span>
+        <button onClick={() => handleMonthChange("next")}><ChevronRight /></button>
+      </div>
 
-        {/* Category Pills */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-6 px-6">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => {
-                setActiveCategory(cat);
-                setSelectedId(null); 
-              }}
+      {/* Categories */}
+      <div className="flex gap-2 overflow-x-auto mb-6">
+        {categories.map(cat => (
+          <button key={cat} onClick={() => setActiveCategory(cat)}>
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {dates.map(date => {
+        const [y, m, d] = date.split("-");
+        const displayDate = new Date(y, m - 1, d);
+
+        return (
+          <div key={date}>
+            <h4>{displayDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</h4>
+
+            {grouped[date].items.map(item => {
+              const normalized = normalizeCategory(item);
+
+              return (
+                <div key={item.id} className="flex justify-between">
+                  <span>{item.note || normalized}</span>
+                  <span>₹{item.amount}</span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}              }}
               className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
                 activeCategory === cat 
                 ? "bg-white text-black border-white shadow-xl scale-95" 
