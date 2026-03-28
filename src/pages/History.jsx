@@ -28,14 +28,23 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  const getDate = (exp) => new Date(exp.created_at || exp.id);
+  // 🔥 FIXED: Bulletproof Date Parsing (Handles Supabase, LocalStorage, and UUIDs safely)
+  const getDate = (exp) => {
+    const rawDate = exp.created_at || exp.date || exp.id;
+    const d = new Date(rawDate);
+    return isNaN(d.getTime()) ? new Date() : d; // Prevent "Invalid Date" crashes
+  };
 
+  // 🔥 FIXED: Bulletproof Filtering (Case-insensitive & ignores accidental spaces)
   const filteredExpenses = expenses.filter(exp => {
     const d = getDate(exp);
+    const categoryMatch = activeCategory === "All" || 
+      (exp.category && exp.category.toString().toLowerCase().trim() === activeCategory.toLowerCase().trim());
+
     return (
       d.getMonth() === selectedMonth &&
       d.getFullYear() === selectedYear &&
-      (activeCategory === "All" || exp.category === activeCategory)
+      categoryMatch
     );
   });
 
@@ -67,10 +76,13 @@ export default function History({ expenses = [], onDelete }) {
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
       
+      {/* Background Ambient Glow */}
+      <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
+
       {/* Header */}
       <header className="flex justify-between items-end mb-10">
         <div>
-          <h1 className="text-3xl font-black tracking-tighter italic">Activity.</h1>
+          <h1 className="text-3xl font-black tracking-tighter italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Activity.</h1>
           <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-bold mt-1">Timeline</p>
         </div>
         <div className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-2xl text-right">
@@ -82,14 +94,14 @@ export default function History({ expenses = [], onDelete }) {
       {/* Month Navigator */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-6 px-2">
-          <button onClick={() => handleMonthChange("prev")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors">
+          <button onClick={() => handleMonthChange("prev")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors active:scale-90">
             <ChevronLeft size={18} />
           </button>
           <div className="text-center">
             <h3 className="text-sm font-black tracking-widest uppercase">{months[selectedMonth]} {selectedYear}</h3>
             <div className="w-1 h-1 bg-indigo-500 rounded-full mx-auto mt-1" />
           </div>
-          <button onClick={() => handleMonthChange("next")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors">
+          <button onClick={() => handleMonthChange("next")} className="text-gray-600 active:text-white p-2 bg-white/5 rounded-full transition-colors active:scale-90">
             <ChevronRight size={18} />
           </button>
         </div>
@@ -99,11 +111,14 @@ export default function History({ expenses = [], onDelete }) {
           {categories.map(cat => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => {
+                setActiveCategory(cat);
+                setSelectedId(null); // Close swiped items on filter change
+              }}
               className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
                 activeCategory === cat 
                 ? "bg-white text-black border-white shadow-xl scale-95" 
-                : "bg-white/[0.03] border-white/5 text-gray-500"
+                : "bg-white/[0.03] border-white/5 text-gray-500 active:bg-white/10"
               }`}
             >
               {cat}
@@ -116,7 +131,7 @@ export default function History({ expenses = [], onDelete }) {
       <div className="space-y-10">
         <AnimatePresence mode="popLayout">
           {dates.length === 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20">
                <div className="w-16 h-16 bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
                   <Calendar size={24} className="text-gray-800" />
                </div>
@@ -124,66 +139,74 @@ export default function History({ expenses = [], onDelete }) {
             </motion.div>
           ) : (
             dates.map(date => (
-              <motion.div layout key={date} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <motion.div layout key={date} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <div className="flex items-center gap-4 mb-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">
                     {new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                   </span>
                   <div className="h-[1px] flex-1 bg-white/5" />
-                  <span className="text-[10px] font-bold text-gray-700 font-mono">₹{grouped[date].total}</span>
+                  {/* Format Daily Total with Commas */}
+                  <span className="text-[10px] font-bold text-gray-700 font-mono tracking-tighter">
+                    ₹{grouped[date].total.toLocaleString('en-IN')}
+                  </span>
                 </div>
 
                 <div className="space-y-3">
-                  {grouped[date].items.map(item => {
-                    const categoryData = categoryIcons[item.category] || categoryIcons.Other;
-                    const isSelected = selectedId === item.id;
-                    
-                    return (
-                      <motion.div
-                        layout
-                        key={item.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="relative"
-                      >
-                        {/* Hidden Delete Action (Copied from Home) */}
-                        <button
-                          onClick={() => {
-                            onDelete(item.id);
-                            setSelectedId(null);
-                          }}
-                          className="absolute right-0 inset-y-0 w-16 bg-red-500 flex items-center justify-center rounded-2xl text-white shadow-lg shadow-red-500/20"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-
-                        {/* Foreground Card (Copied from Home) */}
+                  <AnimatePresence mode="popLayout">
+                    {grouped[date].items.map(item => {
+                      const categoryData = categoryIcons[item.category] || categoryIcons.Other;
+                      const isSelected = selectedId === item.id;
+                      
+                      return (
                         <motion.div
-                          animate={{ x: isSelected ? -70 : 0 }}
-                          onClick={() => setSelectedId(isSelected ? null : item.id)}
-                          className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
+                          layout
+                          key={item.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                          className="relative overflow-hidden rounded-[1.8rem]"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className={`p-2.5 rounded-xl ${categoryData.color} transition-transform ${isSelected ? 'scale-90' : ''}`}>
-                              {categoryData.icon}
+                          {/* 🔹 Swipe-to-Delete Action (Match Home.jsx) */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(item.id);
+                              setSelectedId(null);
+                            }}
+                            className="absolute right-0 inset-y-0 w-20 bg-red-600 flex items-center justify-center text-white active:bg-red-700 transition-colors z-0"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+
+                          {/* 🔹 Foreground Card */}
+                          <motion.div
+                            layout
+                            animate={{ x: isSelected ? -80 : 0 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                            onClick={() => setSelectedId(isSelected ? null : item.id)}
+                            className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 flex justify-between items-center cursor-pointer active:bg-white/[0.02] transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`p-2.5 rounded-2xl ${categoryData.color} transition-transform duration-300 ${isSelected ? 'scale-90' : ''}`}>
+                                {categoryData.icon}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm tracking-tight leading-tight">
+                                  {item.note || item.category}
+                                </p>
+                                <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
+                                  <Clock size={8} /> {item.category}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-bold text-gray-200 tracking-tight leading-tight">
-                                {item.note || item.category}
-                              </p>
-                              <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
-                                <Clock size={8} /> {item.category}
-                              </p>
+                            <div className={`text-right transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
+                              <p className="font-black text-white text-base">₹{Number(item.amount).toLocaleString('en-IN')}</p>
                             </div>
-                          </div>
-                          <div className={`transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
-                            <p className="font-black text-white text-base">₹{item.amount}</p>
-                          </div>
+                          </motion.div>
                         </motion.div>
-                      </motion.div>
-                    );
-                  })}
+                      );
+                    })}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             ))
