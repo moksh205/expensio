@@ -17,24 +17,49 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     if (savedName) setName(savedName);
   }, []);
 
+  // ✅ FIXED TOAST (no stale state bug)
   const triggerToast = (message, type = "success") => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ ...toast, show: false }), 3000);
+
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
   };
 
+  // ✅ TRIMMED SAVE
   const handleSave = () => {
-    if (!name.trim()) return;
-    localStorage.setItem("username", name);
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    localStorage.setItem("username", trimmed);
+    setName(trimmed);
     triggerToast("Profile Updated", "success");
   };
 
-  const handleLogoutAction = () => {
-    onLogout();
-    triggerToast("Logged Out Successfully", "info");
+  // ✅ SAFE LOGOUT (supports async)
+  const handleLogoutAction = async () => {
+    try {
+      await onLogout?.();
+      triggerToast("Logged Out Successfully", "info");
+    } catch (e) {
+      triggerToast("Logout Failed", "warning");
+    }
   };
 
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const displayName = user?.email || name || "Guest User";
+  // ✅ SAFE TOTAL CALCULATION
+  const total = expenses.reduce((sum, e) => {
+    const val = Number(e?.amount);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+
+  // ✅ SAFE NAME DISPLAY
+  const displayName =
+    user?.email ||
+    name ||
+    "Guest User";
+
+  const firstLetter =
+    displayName?.charAt(0)?.toUpperCase() || "G";
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
@@ -82,7 +107,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
           <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-indigo-600 to-emerald-500 p-[2px] shadow-2xl shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-500">
             <div className="w-full h-full rounded-[calc(2.5rem-2px)] bg-[#0a0a0a] flex items-center justify-center">
               <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 to-emerald-400">
-                {displayName.charAt(0).toUpperCase()}
+                {firstLetter}
               </span>
             </div>
           </div>
@@ -97,7 +122,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         </p>
       </header>
 
-      {/* 🔹 Auth / Sync Section */}
+      {/* 🔹 Auth Section */}
       <section className="mb-8">
         {!user ? (
           <button
@@ -114,7 +139,9 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
               </div>
               <div>
                 <p className="text-xs font-bold text-emerald-400">Cloud Sync Active</p>
-                <p className="text-[10px] text-gray-500 font-medium truncate max-w-[150px]">{user.email}</p>
+                <p className="text-[10px] text-gray-500 font-medium truncate max-w-[150px]">
+                  {user?.email || "User"}
+                </p>
               </div>
             </div>
             <button 
@@ -127,7 +154,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         )}
       </section>
 
-      {/* 🔹 Settings Section */}
+      {/* Preferences */}
       <section className="mb-10 space-y-4">
         <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Preferences</p>
         <div className="relative flex items-center">
@@ -147,91 +174,35 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         </div>
       </section>
 
-      {/* 🔹 Bento Stats Grid */}
+      {/* Stats */}
       <section className="grid grid-cols-2 gap-4 mb-10">
-        <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center group active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/5 flex items-center justify-center mb-3">
-            <Wallet size={20} className="text-indigo-400" />
-          </div>
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-600 mb-1">Net Burn</p>
-          <p className="text-xl font-black text-white">₹{total.toLocaleString('en-IN')}</p>
+        <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center">
+          <Wallet size={20} className="text-indigo-400 mb-2" />
+          <p className="text-[9px] text-gray-600">Net Burn</p>
+          <p className="text-xl font-black">₹{total.toLocaleString('en-IN')}</p>
         </div>
 
-        <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center group active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/5 flex items-center justify-center mb-3">
-            <Database size={20} className="text-emerald-400" />
-          </div>
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-600 mb-1">Entries</p>
-          <p className="text-xl font-black text-white">{expenses.length}</p>
+        <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center">
+          <Database size={20} className="text-emerald-400 mb-2" />
+          <p className="text-[9px] text-gray-600">Entries</p>
+          <p className="text-xl font-black">{expenses.length}</p>
         </div>
       </section>
 
-      {/* 🔹 Danger Zone */}
+      {/* Danger */}
       <section>
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">Danger Zone</p>
         <button
           onClick={() => {
-            if (window.confirm("Permanent Action: Erase all data?")) {
+            if (window.confirm("Erase all data?")) {
               resetData();
               triggerToast("All Data Cleared", "warning");
             }
           }}
-          className="w-full group bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 p-5 rounded-[2rem] flex items-center justify-between transition-all active:scale-[0.98]"
+          className="w-full bg-red-500/5 border border-red-500/10 p-5 rounded-[2rem]"
         >
-          <div className="flex items-center gap-4 text-red-500">
-            <div className="w-10 h-10 rounded-2xl bg-red-500/10 flex items-center justify-center group-hover:rotate-12 transition-transform">
-              <Trash2 size={18} />
-            </div>
-            <span className="text-sm font-bold">Clear All Data</span>
-          </div>
-          <ChevronRight size={18} className="text-red-900/30" />
+          Clear All Data
         </button>
       </section>
-
-      <footer className="mt-16 text-center">
-        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-800">Expensio Cloud • v1.0.4</p>
-      </footer>
-    </div>
-  );
-}
-      {/* 🔹 Bento Stats Grid */}
-      <section className="grid grid-cols-2 gap-4 mb-10">
-        <div className="bg-white/[0.02] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center">
-          <Wallet size={20} className="text-indigo-400 mb-3" />
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-600 mb-1">Total Spent</p>
-          <p className="text-xl font-black tracking-tight text-white">₹{total.toLocaleString('en-IN')}</p>
-        </div>
-
-        <div className="bg-white/[0.02] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center">
-          <Database size={20} className="text-emerald-400 mb-3" />
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-600 mb-1">Total Logs</p>
-          <p className="text-xl font-black tracking-tight text-white">{expenses.length}</p>
-        </div>
-      </section>
-
-      {/* 🔹 Danger Zone */}
-      <section>
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">Danger Zone</p>
-        <button
-          onClick={() => {
-            if (window.confirm("This will erase everything. Continue?")) resetData();
-          }}
-          className="w-full group bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 p-5 rounded-[2rem] flex items-center justify-between transition-all active:scale-95"
-        >
-          <div className="flex items-center gap-4 text-red-500">
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Trash2 size={18} />
-            </div>
-            <span className="text-sm font-bold tracking-tight">Clear All Data</span>
-          </div>
-          <ChevronRight size={18} className="text-red-900/50" />
-        </button>
-      </section>
-
-      {/* Footer Info */}
-      <footer className="mt-16 text-center opacity-20">
-        <p className="text-[10px] font-black uppercase tracking-widest">Expensio Cloud • v1.0.4</p>
-      </footer>
     </div>
   );
 }
