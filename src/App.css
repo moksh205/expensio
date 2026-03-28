@@ -1,20 +1,23 @@
 @import "tailwindcss";
 
-/* 🔹 Disable text selection globally */
+/* 🔹 Disable text selection, dragging, and copy menus globally */
 * {
-  user-select: none;
-  -webkit-user-select: none;
-  -ms-user-select: none;
-  -moz-user-select: none;
+  -webkit-touch-callout: none; /* iOS Safari: disables long-press popup menu */
+  -webkit-user-select: none;   /* Safari */
+  -khtml-user-select: none;    /* Konqueror HTML */
+  -moz-user-select: none;      /* Firefox */
+  -ms-user-select: none;       /* Internet Explorer/Edge */
+  user-select: none;           /* Standard syntax */
+  -webkit-user-drag: none;     /* Prevents dragging elements/text */
 }
 
-/* 🔹 Allow selection only for inputs & textarea (important) */
+/* 🔹 Allow selection ONLY for inputs & textareas (so users can still type/edit) */
 input,
 textarea {
-  user-select: text;
-  -webkit-user-select: text;
-  -ms-user-select: text;
-  -moz-user-select: text;
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
 }
 
 /* 🔹 Hide number input spinners (Chrome, Safari, Edge, Opera) */
