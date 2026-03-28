@@ -4,14 +4,12 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from '
 import { 
   TrendingUp, Clock, 
   Utensils, Bike, ShoppingCart, Receipt, 
-  Plus, Coffee, Package, MoreHorizontal, Trash2
+  Plus, Coffee, Package, MoreHorizontal, Trash2, Award
 } from 'lucide-react';
 
-// 🔹 FIXED: Bulletproof Animated Counter with Perfect Indian Commas
 const AnimatedNumber = ({ value }) => {
   const count = useMotionValue(0);
   
-  // Use Math.round to prevent floating point bugs during animation
   const rounded = useTransform(count, (latest) => 
     Math.round(latest).toLocaleString("en-IN")
   );
@@ -19,7 +17,7 @@ const AnimatedNumber = ({ value }) => {
   useEffect(() => {
     const controls = animate(count, value, { 
       duration: 0.8, 
-      ease: [0.16, 1, 0.3, 1] // Premium "Apple-like" easing
+      ease: [0.16, 1, 0.3, 1] 
     });
     return controls.stop;
   }, [value, count]);
@@ -31,7 +29,6 @@ export default function Home({ expenses = [], onDelete, username }) {
   const [selectedId, setSelectedId] = useState(null);
   const [showTotal, setShowTotal] = useState(false);
 
-  // ✅ FIXED: Bulletproof Date Logic (No timezone shift bugs)
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
@@ -47,14 +44,14 @@ export default function Home({ expenses = [], onDelete, username }) {
   };
 
   const categoryIcons = {
-    Food: { icon: <Utensils size={18} />, color: "text-orange-400 bg-orange-500/10" },
-    Ride: { icon: <Bike size={18} />, color: "text-blue-400 bg-blue-500/10" },
-    Blinkit: { icon: <Package size={18} />, color: "text-yellow-400 bg-yellow-500/10" },
-    Zomato: { icon: <Plus size={18} />, color: "text-red-400 bg-red-500/10" },
-    Shopping: { icon: <ShoppingCart size={18} />, color: "text-purple-400 bg-purple-500/10" },
-    Bills: { icon: <Receipt size={18} />, color: "text-emerald-400 bg-emerald-500/10" },
-    Juice: { icon: <Coffee size={18} />, color: "text-pink-400 bg-pink-500/10" },
-    Other: { icon: <MoreHorizontal size={18} />, color: "text-gray-400 bg-gray-500/10" },
+    Food: { icon: <Utensils size={18} />, color: "text-orange-400 bg-orange-500/10", bar: "bg-orange-500" },
+    Ride: { icon: <Bike size={18} />, color: "text-blue-400 bg-blue-500/10", bar: "bg-blue-500" },
+    Blinkit: { icon: <Package size={18} />, color: "text-yellow-400 bg-yellow-500/10", bar: "bg-yellow-500" },
+    Zomato: { icon: <Plus size={18} />, color: "text-red-400 bg-red-500/10", bar: "bg-red-500" },
+    Shopping: { icon: <ShoppingCart size={18} />, color: "text-purple-400 bg-purple-500/10", bar: "bg-purple-500" },
+    Bills: { icon: <Receipt size={18} />, color: "text-emerald-400 bg-emerald-500/10", bar: "bg-emerald-500" },
+    Juice: { icon: <Coffee size={18} />, color: "text-pink-400 bg-pink-500/10", bar: "bg-pink-500" },
+    Other: { icon: <MoreHorizontal size={18} />, color: "text-gray-400 bg-gray-500/10", bar: "bg-gray-500" },
   };
 
   const monthlyTotal = expenses.reduce((sum, e) => {
@@ -70,6 +67,20 @@ export default function Home({ expenses = [], onDelete, username }) {
     .filter((e) => isToday(e.created_at || e.date))
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
+  // 🔥 NEW: Calculate Top Spending Category for the current month
+  const categoryTotals = expenses.reduce((acc, exp) => {
+    const d = new Date(exp.created_at || exp.date);
+    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+      acc[exp.category] = (acc[exp.category] || 0) + Number(exp.amount);
+    }
+    return acc;
+  }, {});
+
+  const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+  const topCategoryPercentage = topCategory && monthlyTotal > 0 
+    ? Math.round((topCategory[1] / monthlyTotal) * 100) 
+    : 0;
+
   const recentTransactions = [...expenses]
     .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
     .slice(0, 5);
@@ -77,7 +88,6 @@ export default function Home({ expenses = [], onDelete, username }) {
   return (
     <div className="min-h-screen bg-[#050505] text-white px-5 py-8 pb-28 font-sans max-w-md mx-auto relative overflow-hidden">
       
-      {/* Background Ambient Glow */}
       <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
 
       {/* Header */}
@@ -94,13 +104,12 @@ export default function Home({ expenses = [], onDelete, username }) {
         </Link>
       </header>
 
-      {/* 🔥 THE UNIQUE TOGGLE CARD */}
+      {/* Toggle Card */}
       <motion.div
         onClick={() => setShowTotal(!showTotal)}
         whileTap={{ scale: 0.96 }}
-        className="relative bg-[#0c0c0c] border border-white/5 p-8 rounded-[2.8rem] mb-10 overflow-hidden cursor-pointer shadow-2xl group"
+        className="relative bg-[#0c0c0c] border border-white/5 p-8 rounded-[2.8rem] mb-6 overflow-hidden cursor-pointer shadow-2xl group"
       >
-        {/* Dynamic Gradient Background */}
         <div className={`absolute inset-0 transition-opacity duration-700 opacity-40 ${showTotal ? 'bg-gradient-to-br from-emerald-600/20 via-transparent to-transparent' : 'bg-gradient-to-br from-indigo-600/20 via-transparent to-transparent'}`} />
         
         <div className="relative z-10">
@@ -124,7 +133,6 @@ export default function Home({ expenses = [], onDelete, username }) {
             </motion.div>
           </div>
 
-          {/* Animated Amount */}
           <div className="flex items-baseline gap-1 mt-2">
             <span className="text-2xl font-light text-gray-500">₹</span>
             <h2 className="text-5xl font-black tracking-tighter tabular-nums">
@@ -132,7 +140,6 @@ export default function Home({ expenses = [], onDelete, username }) {
             </h2>
           </div>
 
-          {/* Premium Pill Indicator */}
           <div className="mt-6 inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
             <div className="flex gap-1 items-center">
                <div className={`h-1.5 rounded-full transition-all duration-300 ${!showTotal ? 'bg-indigo-500 w-4' : 'bg-white/10 w-1.5'}`} />
@@ -143,7 +150,7 @@ export default function Home({ expenses = [], onDelete, username }) {
         </div>
       </motion.div>
 
-      {/* Stats Bento Grid */}
+      {/* Expanded Stats Bento Grid */}
       <div className="grid grid-cols-2 gap-4 mb-10">
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2rem] flex flex-col justify-between h-28">
           <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold">Today</p>
@@ -154,6 +161,39 @@ export default function Home({ expenses = [], onDelete, username }) {
           <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold">Logs</p>
           <p className="text-2xl font-black text-white">{expenses.length}</p>
         </div>
+
+        {/* 🔥 NEW: Top Category Insight (Full Width) */}
+        {topCategory && (
+          <div className="col-span-2 bg-gradient-to-r from-white/[0.02] to-white/[0.05] border border-white/5 p-5 rounded-[2rem] flex flex-col justify-between">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${categoryIcons[topCategory[0]]?.color || categoryIcons.Other.color}`}>
+                  {categoryIcons[topCategory[0]]?.icon || categoryIcons.Other.icon}
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gray-600 font-black flex items-center gap-1">
+                    <Award size={10} className="text-indigo-500" /> Top Spending
+                  </p>
+                  <p className="font-bold text-white tracking-tight">{topCategory[0]}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-white text-lg tracking-tight">₹{topCategory[1].toLocaleString("en-IN")}</p>
+                <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">{topCategoryPercentage}% of month</p>
+              </div>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${topCategoryPercentage}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className={`h-full rounded-full ${categoryIcons[topCategory[0]]?.bar || "bg-gray-500"}`} 
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recent Logs Section */}
