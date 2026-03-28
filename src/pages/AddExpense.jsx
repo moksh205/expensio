@@ -111,23 +111,30 @@ export default function AddExpense({ addExpense }) {
         )}
       </AnimatePresence>
 
-      <h1 className="text-2xl font-bold tracking-tight mb-8 bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
+      <h1 className="text-2xl font-bold tracking-tight mb-6 bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
         Quick Add
       </h1>
 
-      {/* Amount Input Section */}
-      <div className="relative group mb-2">
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-4xl font-light text-gray-500 group-focus-within:text-indigo-400 transition-colors">₹</span>
-        <input
-          type="number"
-          inputMode="decimal" 
-          placeholder="0"
-          value={amount}
-          autoFocus
-          onChange={(e) => setAmount(e.target.value)}
-          className="w-full bg-transparent border-b border-white/10 py-4 pl-10 text-5xl font-bold outline-none focus:border-indigo-500 transition-all placeholder:text-white/5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mt-3 font-bold">Transaction Amount</p>
+      {/* 🔥 THE FIX: Centered GPay Style Input */}
+      <div className="flex flex-col items-center justify-center mb-8 mt-4">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">Transaction Amount</p>
+        
+        <div className="relative flex justify-center items-center w-full max-w-[220px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
+          {/* Anchored ₹ symbol */}
+          <span className={`absolute left-2 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
+            ₹
+          </span>
+          
+          <input
+            type="number"
+            inputMode="decimal"
+            placeholder="0"
+            value={amount}
+            /* autoFocus removed here to stop keyboard from auto-opening */
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full bg-transparent text-center text-6xl font-black outline-none placeholder:text-white/5 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        </div>
       </div>
 
       {/* Dynamic Typing Option */}
@@ -138,9 +145,74 @@ export default function AddExpense({ addExpense }) {
               initial={{ opacity: 0, y: -10, height: 0 }}
               animate={{ opacity: 1, y: 0, height: "auto" }}
               exit={{ opacity: 0, y: -10, height: 0 }}
-              className="mt-4 overflow-hidden"
+              className="mt-2 overflow-hidden"
             >
               <input
+                type="text"
+                placeholder="What for? (e.g. Medicine, Gift)"
+                value={customNote}
+                onChange={(e) => setCustomNote(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Categories Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-10 mt-2">
+        {categories.map((cat) => {
+          const isActive = selectedCategory === cat.name;
+          return (
+            <button
+              key={cat.name}
+              onClick={() => setSelectedCategory(cat.name)}
+              className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                isActive
+                  ? `${cat.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
+                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
+              }`}
+            >
+              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
+              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
+                {cat.icon}
+              </div>
+              <span className={`relative z-10 text-sm font-medium transition-colors ${isActive ? "text-white" : "text-gray-500"}`}>
+                {cat.name}
+              </span>
+              {isActive && (
+                <motion.div 
+                  layoutId="active-selection-indicator"
+                  className="absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_white]"
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Main Action Button */}
+      <motion.button
+        whileTap={{ scale: 0.94 }}
+        onClick={handleAdd}
+        disabled={!amount || !selectedCategory || loading}
+        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 shadow-2xl flex items-center justify-center gap-2 ${
+          amount && selectedCategory && !loading
+            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-indigo-500/25 cursor-pointer"
+            : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
+        }`}
+      >
+        {loading ? (
+          <Loader2 className="animate-spin" size={24} />
+        ) : showToast ? (
+          "Saved! ✓"
+        ) : (
+          "Save Transaction"
+        )}
+      </motion.button>
+    </div>
+  );
+}
                 type="text"
                 placeholder="What for? (e.g. Medicine, Gift)"
                 value={customNote}
