@@ -5,7 +5,6 @@ import {
   Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2 
 } from "lucide-react";
 
-// 🔥 Supabase
 import { supabase } from "../supabase";
 
 export default function AddExpense({ addExpense }) {
@@ -26,37 +25,63 @@ export default function AddExpense({ addExpense }) {
     { name: "Other", icon: <MoreHorizontal size={18} />, color: "bg-gray-500/20 text-gray-400" },
   ];
 
-  // 🔥 VALIDATION LOGIC: Ensures button stays disabled if inputs are garbage
-  const numAmount = Number(amount);
-  const isValidAmount = numAmount > 0; // Blocks 0, negatives, and empty spaces
-  const isValidNote = selectedCategory !== "Other" || customNote.trim().length > 0; // Blocks empty "Other" notes
-  const canSubmit = isValidAmount && selectedCategory && isValidNote && !loading;
+  // ✅ SAFE AMOUNT PARSING
+  const numAmount = parseFloat(amount);
+  const isValidAmount = !isNaN(numAmount) && numAmount > 0;
+
+  const isValidNote =
+    selectedCategory !== "Other" ||
+    customNote.trim().length > 0;
+
+  const canSubmit =
+    isValidAmount &&
+    selectedCategory &&
+    isValidNote &&
+    !loading;
 
   const handleAdd = async () => {
     if (!canSubmit) return;
+
+    // 🔥 Prevent double click spam
+    if (loading) return;
+
     setLoading(true);
 
-    const finalNote = selectedCategory === "Other" ? customNote.trim() : selectedCategory;
+    const finalNote =
+      selectedCategory === "Other"
+        ? customNote.trim()
+        : selectedCategory;
 
     const expenseData = {
       id: Date.now(),
       amount: numAmount,
       category: selectedCategory,
       note: finalNote,
-      created_at: new Date().toISOString(), // Locks in exact local device time
+      created_at: new Date().toISOString(), // ✅ important for consistency
     };
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // 🟡 GUEST MODE → save locally
-        const guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
+        // 🟡 GUEST MODE SAFE PARSE
+        let guestData = [];
+        try {
+          guestData =
+            JSON.parse(localStorage.getItem("guest_expenses")) || [];
+        } catch {
+          guestData = [];
+        }
+
         guestData.push(expenseData);
-        localStorage.setItem("guest_expenses", JSON.stringify(guestData));
+
+        localStorage.setItem(
+          "guest_expenses",
+          JSON.stringify(guestData)
+        );
+
         addExpense(expenseData);
       } else {
-        // 🔵 AUTHENTICATED MODE → save to Supabase
         const { data: insertedData, error } = await supabase
           .from("expenses")
           .insert([
@@ -65,7 +90,7 @@ export default function AddExpense({ addExpense }) {
               amount: expenseData.amount,
               category: expenseData.category,
               note: expenseData.note,
-              created_at: expenseData.created_at, // 🔥 FIX: explicitly sending created_at to DB
+              created_at: expenseData.created_at, // ✅ FIXED
             },
           ])
           .select();
@@ -75,7 +100,7 @@ export default function AddExpense({ addExpense }) {
         addExpense(insertedData[0]);
       }
 
-      // ✅ Success UI
+      // ✅ SUCCESS UI
       setShowToast(true);
       setAmount("");
       setSelectedCategory("");
@@ -93,7 +118,6 @@ export default function AddExpense({ addExpense }) {
   return (
     <div className="relative p-6 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-hidden font-sans">
       
-      {/* 🔹 SUCCESS TOAST POPUP */}
       <AnimatePresence>
         {showToast && (
           <motion.div
@@ -119,15 +143,17 @@ export default function AddExpense({ addExpense }) {
         Quick Add
       </h1>
 
-      {/* Centered GPay Style Input */}
+      {/* Amount */}
       <div className="flex flex-col items-center justify-center mb-8 mt-4">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">Transaction Amount</p>
-        
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">
+          Transaction Amount
+        </p>
+
         <div className="relative flex justify-center items-center w-full max-w-[220px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
           <span className={`absolute left-2 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
             ₹
           </span>
-          
+
           <input
             type="number"
             inputMode="decimal"
@@ -139,7 +165,7 @@ export default function AddExpense({ addExpense }) {
         </div>
       </div>
 
-      {/* Dynamic Typing Option */}
+      {/* Other */}
       <div className="min-h-[85px]">
         <AnimatePresence mode="wait">
           {selectedCategory === "Other" && (
@@ -161,7 +187,7 @@ export default function AddExpense({ addExpense }) {
         </AnimatePresence>
       </div>
 
-      {/* Categories Grid */}
+      {/* Categories */}
       <div className="grid grid-cols-2 gap-3 mb-10 mt-2">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.name;
@@ -179,28 +205,22 @@ export default function AddExpense({ addExpense }) {
               <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
                 {cat.icon}
               </div>
-              <span className={`relative z-10 text-sm font-medium transition-colors ${isActive ? "text-white" : "text-gray-500"}`}>
+              <span className={`relative z-10 text-sm font-medium ${isActive ? "text-white" : "text-gray-500"}`}>
                 {cat.name}
               </span>
-              {isActive && (
-                <motion.div 
-                  layoutId="active-selection-indicator"
-                  className="absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_white]"
-                />
-              )}
             </button>
           );
         })}
       </div>
 
-      {/* Main Action Button */}
+      {/* Button */}
       <motion.button
         whileTap={canSubmit ? { scale: 0.94 } : {}}
         onClick={handleAdd}
         disabled={!canSubmit}
-        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 shadow-2xl flex items-center justify-center gap-2 ${
+        className={`w-full py-5 rounded-[2rem] font-bold text-lg ${
           canSubmit
-            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-indigo-500/25 cursor-pointer"
+            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white"
             : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
         }`}
       >
@@ -212,75 +232,6 @@ export default function AddExpense({ addExpense }) {
           "Save Transaction"
         )}
       </motion.button>
-    </div>
-  );
-}
-            animate={{ opacity: 1, y: 0, x: "-50%" }}
-            exit={{ opacity: 0, y: -80, x: "-50%" }}
-            className="fixed top-6 left-1/2 z-50 w-[90%] max-w-xs"
-          >
-            <div className="bg-emerald-500/10 border border-emerald-500/40 p-4 rounded-3xl flex items-center gap-3">
-              <CheckCircle2 size={20} className="text-emerald-400" />
-              <span className="text-sm font-bold text-emerald-400">
-                Saved Successfully
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Amount */}
-      <div className="flex flex-col items-center mb-8 mt-6">
-        <span className="text-gray-500 text-xs mb-2">Amount</span>
-
-        <div className="flex items-center border-b border-white/10">
-          <span className="text-4xl text-gray-500 mr-2">₹</span>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="bg-transparent text-5xl text-center outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Other input */}
-      {selectedCategory === "Other" && (
-        <input
-          type="text"
-          placeholder="Enter note"
-          value={customNote}
-          onChange={(e) => setCustomNote(e.target.value)}
-          className="w-full p-3 mb-4 bg-white/5 rounded-xl outline-none"
-        />
-      )}
-
-      {/* Categories */}
-      <div className="grid grid-cols-2 gap-3 mb-8">
-        {categories.map((cat) => (
-          <button
-            key={cat.name}
-            onClick={() => setSelectedCategory(cat.name)}
-            className={`p-4 rounded-xl flex items-center gap-2 ${
-              selectedCategory === cat.name
-                ? "bg-white text-black"
-                : "bg-white/5 text-gray-400"
-            }`}
-          >
-            {cat.icon}
-            {cat.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Button */}
-      <button
-        onClick={handleAdd}
-        disabled={loading}
-        className="w-full py-4 bg-indigo-600 rounded-xl flex justify-center items-center"
-      >
-        {loading ? <Loader2 className="animate-spin" /> : "Save"}
-      </button>
     </div>
   );
 }
