@@ -28,13 +28,12 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // ✅ FIXED CATEGORY PRIORITY
+  // ✅ CATEGORY NORMALIZATION
   const normalizeCategory = (exp) => {
     const text = `${exp.category || ""} ${exp.note || ""}`.toLowerCase();
 
-    // Priority matters
     if (text.includes("blinkit")) return "Blinkit";
-    if (text.includes("zomato")) return "Zomato"; // 👈 keep above food
+    if (text.includes("zomato")) return "Zomato";
     if (text.includes("juice") || text.includes("coconut") || text.includes("drink") || text.includes("coffee") || text.includes("tea")) return "Juice";
     if (text.includes("ride") || text.includes("metro") || text.includes("uber") || text.includes("rapido") || text.includes("auto")) return "Ride";
     if (text.includes("bill") || text.includes("electricity") || text.includes("recharge")) return "Bills";
@@ -44,37 +43,41 @@ export default function History({ expenses = [], onDelete }) {
     return "Other";
   };
 
-  // ✅ SAFE DATE
-  const getDate = (exp) => {
+  // ✅ SINGLE SOURCE OF TRUTH (IMPORTANT FIX)
+  const processedExpenses = expenses.map(exp => {
     const raw = exp.created_at || exp.date;
     if (!raw) return null;
 
     const d = new Date(raw);
-    return isNaN(d.getTime()) ? null : d;
-  };
+    if (isNaN(d.getTime())) return null;
+
+    // Apply IST ONLY ONCE
+    const local = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
+
+    return {
+      ...exp,
+      _date: local,
+      _category: normalizeCategory(exp)
+    };
+  }).filter(Boolean);
 
   // ✅ FILTER
-  const filteredExpenses = expenses.filter(exp => {
-    const d = getDate(exp);
-    if (!d) return false;
-
-    const normalized = normalizeCategory(exp);
-
+  const filteredExpenses = processedExpenses.filter(exp => {
     return (
-      d.getMonth() === selectedMonth &&
-      d.getFullYear() === selectedYear &&
-      (activeCategory === "All" || normalized === activeCategory)
+      exp._date.getMonth() === selectedMonth &&
+      exp._date.getFullYear() === selectedYear &&
+      (activeCategory === "All" || exp._category === activeCategory)
     );
   });
 
-  // ✅ 🔥 FIXED GROUPING (NO LOCALE BUGS)
+  // ✅ GROUP
   const grouped = filteredExpenses.reduce((acc, exp) => {
-    const d = getDate(exp);
-    if (!d) return acc;
+    const d = exp._date;
 
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     if (!acc[key]) acc[key] = { items: [], total: 0 };
+
     acc[key].items.push(exp);
     acc[key].total += Number(exp.amount);
 
@@ -107,6 +110,47 @@ export default function History({ expenses = [], onDelete }) {
         <div>₹{monthTotal.toLocaleString('en-IN')}</div>
       </header>
 
+      {/* Month */}
+      <div className="flex justify-between mb-6">
+        <button onClick={() => handleMonthChange("prev")}><ChevronLeft /></button>
+        <span>{months[selectedMonth]} {selectedYear}</span>
+        <button onClick={() => handleMonthChange("next")}><ChevronRight /></button>
+      </div>
+
+      {/* Categories */}
+      <div className="flex gap-2 overflow-x-auto mb-6">
+        {categories.map(cat => (
+          <button key={cat} onClick={() => setActiveCategory(cat)}>
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {dates.length === 0 ? (
+        <p className="text-center text-gray-500">No logs found</p>
+      ) : (
+        dates.map(date => {
+          const [y, m, d] = date.split("-");
+          const displayDate = new Date(y, m - 1, d);
+
+          return (
+            <div key={date}>
+              <h4>{displayDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</h4>
+
+              {grouped[date].items.map(item => (
+                <div key={item.id} className="flex justify-between">
+                  <span>{item.note || item._category}</span>
+                  <span>₹{item.amount}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
       {/* Month */}
       <div className="flex justify-between mb-6">
         <button onClick={() => handleMonthChange("prev")}><ChevronLeft /></button>
