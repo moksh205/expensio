@@ -28,23 +28,27 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // 🔥 FIXED: Bulletproof Date Parsing (Handles Supabase, LocalStorage, and UUIDs safely)
+  // Bulletproof Date Parsing
   const getDate = (exp) => {
     const rawDate = exp.created_at || exp.date || exp.id;
     const d = new Date(rawDate);
-    return isNaN(d.getTime()) ? new Date() : d; // Prevent "Invalid Date" crashes
+    return isNaN(d.getTime()) ? new Date() : d; 
   };
 
-  // 🔥 FIXED: Bulletproof Filtering (Case-insensitive & ignores accidental spaces)
+  // 🔥 THE FIX: Smart Filtering checks BOTH Category AND Custom Notes
   const filteredExpenses = expenses.filter(exp => {
     const d = getDate(exp);
-    const categoryMatch = activeCategory === "All" || 
-      (exp.category && exp.category.toString().toLowerCase().trim() === activeCategory.toLowerCase().trim());
+    const filterText = activeCategory.toLowerCase().trim();
+    
+    // Check if the actual category matches OR if the note contains the filter word
+    const isMatch = activeCategory === "All" || 
+      (exp.category && exp.category.toString().toLowerCase().trim() === filterText) ||
+      (exp.note && exp.note.toString().toLowerCase().includes(filterText));
 
     return (
       d.getMonth() === selectedMonth &&
       d.getFullYear() === selectedYear &&
-      categoryMatch
+      isMatch
     );
   });
 
@@ -166,7 +170,7 @@ export default function History({ expenses = [], onDelete }) {
                           exit={{ opacity: 0, x: -50, scale: 0.9 }}
                           className="relative overflow-hidden rounded-[1.8rem]"
                         >
-                          {/* 🔹 Swipe-to-Delete Action (Match Home.jsx) */}
+                          {/* 🔹 Swipe-to-Delete Action */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
