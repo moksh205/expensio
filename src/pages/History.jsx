@@ -28,16 +28,13 @@ export default function History({ expenses = [], onDelete }) {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const categories = ["All", ...Object.keys(categoryIcons)];
 
-  // ✅ UPGRADED NORMALIZE
+  // ✅ SMART NORMALIZE
   const normalizeCategory = (exp) => {
     const text = `${exp.category || ""} ${exp.note || ""}`.toLowerCase();
 
     if (text.includes("blinkit")) return "Blinkit";
     if (text.includes("juice") || text.includes("coconut") || text.includes("drink") || text.includes("coffee") || text.includes("tea")) return "Juice";
-    
-    // Zomato and Meal merged into Food for broader coverage
     if (text.includes("food") || text.includes("zomato") || text.includes("meal") || text.includes("lunch") || text.includes("dinner") || text.includes("snack")) return "Food";
-    
     if (text.includes("ride") || text.includes("metro") || text.includes("uber") || text.includes("rapido") || text.includes("auto")) return "Ride";
     if (text.includes("electricity") || text.includes("bill") || text.includes("recharge")) return "Bills";
     if (text.includes("shopping") || text.includes("amazon") || text.includes("flipkart") || text.includes("myntra")) return "Shopping";
@@ -48,7 +45,7 @@ export default function History({ expenses = [], onDelete }) {
     return validCategories.includes(fallbackCat) ? fallbackCat : "Other";
   };
 
-  // Safe and Clean Date Parsing
+  // Safe Date Parsing
   const getDate = (exp) => {
     const rawDate = exp.created_at || exp.date;
     if (!rawDate) return null;
@@ -57,27 +54,32 @@ export default function History({ expenses = [], onDelete }) {
     return isNaN(d.getTime()) ? null : d;
   };
 
-  // Filter
+  // 🔥 CRITICAL FIX: IST Timezone-Proof Filtering
   const filteredExpenses = expenses.filter(exp => {
     const d = getDate(exp);
     if (!d) return false;
 
+    // Force IST for UTC Supabase timestamps
+    const local = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
     const normalized = normalizeCategory(exp);
 
     return (
-      d.getMonth() === selectedMonth &&
-      d.getFullYear() === selectedYear &&
+      local.getMonth() === selectedMonth &&
+      local.getFullYear() === selectedYear &&
       (activeCategory === "All" || normalized === activeCategory)
     );
   });
 
-  // ✅ CRITICAL FIX: Timezone-Proof Grouping
+  // 🔥 CRITICAL FIX: IST Timezone-Proof Grouping
   const grouped = filteredExpenses.reduce((acc, exp) => {
     const d = getDate(exp);
     if (!d) return acc;
 
-    // Manual padding ensures perfect YYYY-MM-DD every time, regardless of local time shifts
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // Force IST for UTC Supabase timestamps
+    const local = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
+    
+    // Manual padding ensures perfect YYYY-MM-DD grouping in IST
+    const key = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
 
     if (!acc[key]) acc[key] = { items: [], total: 0 };
     acc[key].items.push(exp);
@@ -141,6 +143,125 @@ export default function History({ expenses = [], onDelete }) {
           {categories.map(cat => (
             <button
               key={cat}
+              onClick={() => {
+                setActiveCategory(cat);
+                setSelectedId(null); 
+              }}
+              className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
+                activeCategory === cat 
+                ? "bg-white text-black border-white shadow-xl scale-95" 
+                : "bg-white/[0.03] border-white/5 text-gray-500 active:bg-white/10"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* List */}
+      <div className="space-y-10">
+        <AnimatePresence mode="popLayout">
+          {dates.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20">
+               <div className="w-16 h-16 bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
+                  <Calendar size={24} className="text-gray-800" />
+               </div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">No logs found</p>
+            </motion.div>
+          ) : (
+            dates.map(date => {
+              // Safe Display Date Parsing (Bypasses timezone shifts)
+              const [year, month, day] = date.split("-");
+              const displayDate = new Date(year, month - 1, day);
+
+              return (
+                <motion.div layout key={date} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  
+                  {/* Date Header */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">
+                      {displayDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </span>
+                    <div className="h-[1px] flex-1 bg-white/5" />
+                    <span className="text-[10px] font-bold text-gray-700 font-mono tracking-tighter">
+                      ₹{grouped[date].total.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Transactions */}
+                  <div className="space-y-3">
+                    <AnimatePresence mode="popLayout">
+                      {grouped[date].items.map(item => {
+                        const normalized = normalizeCategory(item);
+                        const categoryData = categoryIcons[normalized] || categoryIcons.Other;
+                        const isSelected = selectedId === item.id;
+                        
+                        return (
+                          <motion.div
+                            layout
+                            key={item.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                            className="relative overflow-hidden rounded-[1.8rem]"
+                          >
+                            {/* Swipe-to-Delete Action */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(item.id);
+                                setSelectedId(null);
+                              }}
+                              className="absolute right-0 inset-y-0 w-20 bg-red-600 flex items-center justify-center text-white active:bg-red-700 transition-colors z-0"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+
+                            {/* Foreground Card */}
+                            <motion.div
+                              layout
+                              animate={{ x: isSelected ? -80 : 0 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                              onClick={() => setSelectedId(isSelected ? null : item.id)}
+                              className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 flex justify-between items-center cursor-pointer active:bg-white/[0.02] transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`p-2.5 rounded-2xl ${categoryData.color} transition-transform duration-300 ${isSelected ? 'scale-90' : ''}`}>
+                                  {categoryData.icon}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-sm tracking-tight leading-tight">
+                                    {item.note || normalized}
+                                  </p>
+                                  <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
+                                    <Clock size={8} /> {normalized}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className={`text-right transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
+                                <p className="font-black text-white text-base">₹{Number(item.amount).toLocaleString('en-IN')}</p>
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </AnimatePresence>
+      </div>
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </div>
+  );
+}
               onClick={() => {
                 setActiveCategory(cat);
                 setSelectedId(null); 
