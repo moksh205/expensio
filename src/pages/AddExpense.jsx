@@ -5,7 +5,6 @@ import {
   Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2 
 } from "lucide-react";
 
-// 🔥 Supabase
 import { supabase } from "../supabase";
 
 export default function AddExpense({ addExpense }) {
@@ -26,255 +25,153 @@ export default function AddExpense({ addExpense }) {
     { name: "Other", icon: <MoreHorizontal size={18} />, color: "bg-gray-500/20 text-gray-400" },
   ];
 
- const handleAdd = async () => {
-  if (!amount || !selectedCategory) return;
-  setLoading(true);
+  const handleAdd = async () => {
+    const amt = Number(amount);
 
-  const finalNote = selectedCategory === "Other" ? customNote : selectedCategory;
+    // ✅ VALIDATION
+    if (!amt || amt <= 0 || !selectedCategory) return;
 
-  const expenseData = {
-    id: Date.now(),
-    amount: Number(amount),
-    category: selectedCategory,
-    note: finalNote,
-    created_at: new Date().toISOString(),
-  };
-
-  try {
-    // 🔥 Get user
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      // 🟡 GUEST MODE → save locally
-      const guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
-      guestData.push(expenseData);
-
-      localStorage.setItem("guest_expenses", JSON.stringify(guestData));
-
-      addExpense(expenseData);
-    } else {
-      
-      const { data: insertedData, error } = await supabase
-        .from("expenses")
-        .insert([
-          {
-            user_id: user.id,
-            amount: expenseData.amount,
-            category: expenseData.category,
-            note: expenseData.note,
-          },
-        ])
-        .select();
-
-      if (error) throw error;
-
-      addExpense(insertedData[0]);
+    if (selectedCategory === "Other" && !customNote.trim()) {
+      alert("Please enter a note for 'Other'");
+      return;
     }
 
-    // ✅ Success UI
-    setShowToast(true);
-    setAmount("");
-    setSelectedCategory("");
-    setCustomNote("");
+    setLoading(true);
 
-    setTimeout(() => setShowToast(false), 3000);
+    const finalNote =
+      selectedCategory === "Other"
+        ? customNote.trim()
+        : selectedCategory;
 
-  } catch (err) {
-    console.error("Error saving:", err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+    const expenseData = {
+      id: Date.now(),
+      amount: amt,
+      category: selectedCategory,
+      note: finalNote,
+      created_at: new Date().toISOString(), // ✅ IMPORTANT
+    };
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        // 🟡 Guest mode
+        const guestData =
+          JSON.parse(localStorage.getItem("guest_expenses")) || [];
+
+        guestData.push(expenseData);
+
+        localStorage.setItem("guest_expenses", JSON.stringify(guestData));
+
+        addExpense(expenseData);
+      } else {
+        const { data, error } = await supabase
+          .from("expenses")
+          .insert([
+            {
+              user_id: user.id,
+              amount: expenseData.amount,
+              category: expenseData.category,
+              note: expenseData.note,
+              created_at: expenseData.created_at, // ✅ FIXED
+            },
+          ])
+          .select();
+
+        if (error) throw error;
+
+        addExpense(data[0]);
+      }
+
+      // ✅ SUCCESS UI
+      setShowToast(true);
+      setAmount("");
+      setSelectedCategory("");
+      setCustomNote("");
+
+      setTimeout(() => setShowToast(false), 2500);
+
+    } catch (err) {
+      console.error("Error saving:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="relative p-6 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-hidden font-sans">
-      
-      {/* 🔹 SUCCESS TOAST POPUP */}
+    <div className="relative p-6 max-w-md mx-auto text-white min-h-screen bg-[#050505]">
+
+      {/* Toast */}
       <AnimatePresence>
         {showToast && (
           <motion.div
-            initial={{ opacity: 0, y: -100, x: "-50%" }}
+            initial={{ opacity: 0, y: -80, x: "-50%" }}
             animate={{ opacity: 1, y: 0, x: "-50%" }}
-            exit={{ opacity: 0, y: -100, x: "-50%" }}
-            className="fixed top-6 left-1/2 z-[100] w-[90%] max-w-xs pointer-events-none"
+            exit={{ opacity: 0, y: -80, x: "-50%" }}
+            className="fixed top-6 left-1/2 z-50 w-[90%] max-w-xs"
           >
-            <div className="bg-emerald-500/10 border border-emerald-500/50 backdrop-blur-xl p-4 rounded-3xl flex items-center gap-3 shadow-[0_20px_40px_rgba(16,185,129,0.2)]">
-              <div className="bg-emerald-500 rounded-full p-1">
-                <CheckCircle2 size={20} className="text-black" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-emerald-400">Saved Successfully</p>
-                <p className="text-[10px] text-emerald-500/60 uppercase tracking-widest font-bold">Cloud Synced</p>
-              </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/40 p-4 rounded-3xl flex items-center gap-3">
+              <CheckCircle2 size={20} className="text-emerald-400" />
+              <span className="text-sm font-bold text-emerald-400">
+                Saved Successfully
+              </span>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <h1 className="text-2xl font-bold tracking-tight mb-6 bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
-        Quick Add
-      </h1>
+      {/* Amount */}
+      <div className="flex flex-col items-center mb-8 mt-6">
+        <span className="text-gray-500 text-xs mb-2">Amount</span>
 
-      {/* 🔥 THE FIX: Centered GPay Style Input */}
-      <div className="flex flex-col items-center justify-center mb-8 mt-4">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">Transaction Amount</p>
-        
-        <div className="relative flex justify-center items-center w-full max-w-[220px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
-          {/* Anchored ₹ symbol */}
-          <span className={`absolute left-2 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
-            ₹
-          </span>
-          
+        <div className="flex items-center border-b border-white/10">
+          <span className="text-4xl text-gray-500 mr-2">₹</span>
           <input
             type="number"
-            inputMode="decimal"
-            placeholder="0"
             value={amount}
-            /* autoFocus removed here to stop keyboard from auto-opening */
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full bg-transparent text-center text-6xl font-black outline-none placeholder:text-white/5 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="bg-transparent text-5xl text-center outline-none"
           />
         </div>
       </div>
 
-      {/* Dynamic Typing Option */}
-      <div className="min-h-[85px]">
-        <AnimatePresence mode="wait">
-          {selectedCategory === "Other" && (
-            <motion.div
-              initial={{ opacity: 0, y: -10, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: "auto" }}
-              exit={{ opacity: 0, y: -10, height: 0 }}
-              className="mt-2 overflow-hidden"
-            >
-              <input
-                type="text"
-                placeholder="What for? (e.g. Medicine, Gift)"
-                value={customNote}
-                onChange={(e) => setCustomNote(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Other input */}
+      {selectedCategory === "Other" && (
+        <input
+          type="text"
+          placeholder="Enter note"
+          value={customNote}
+          onChange={(e) => setCustomNote(e.target.value)}
+          className="w-full p-3 mb-4 bg-white/5 rounded-xl outline-none"
+        />
+      )}
+
+      {/* Categories */}
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        {categories.map((cat) => (
+          <button
+            key={cat.name}
+            onClick={() => setSelectedCategory(cat.name)}
+            className={`p-4 rounded-xl flex items-center gap-2 ${
+              selectedCategory === cat.name
+                ? "bg-white text-black"
+                : "bg-white/5 text-gray-400"
+            }`}
+          >
+            {cat.icon}
+            {cat.name}
+          </button>
+        ))}
       </div>
 
-      {/* Categories Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-10 mt-2">
-        {categories.map((cat) => {
-          const isActive = selectedCategory === cat.name;
-          return (
-            <button
-              key={cat.name}
-              onClick={() => setSelectedCategory(cat.name)}
-              className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
-                isActive
-                  ? `${cat.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
-                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
-              }`}
-            >
-              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
-              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
-                {cat.icon}
-              </div>
-              <span className={`relative z-10 text-sm font-medium transition-colors ${isActive ? "text-white" : "text-gray-500"}`}>
-                {cat.name}
-              </span>
-              {isActive && (
-                <motion.div 
-                  layoutId="active-selection-indicator"
-                  className="absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_white]"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main Action Button */}
-      <motion.button
-        whileTap={{ scale: 0.94 }}
+      {/* Button */}
+      <button
         onClick={handleAdd}
-        disabled={!amount || !selectedCategory || loading}
-        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 shadow-2xl flex items-center justify-center gap-2 ${
-          amount && selectedCategory && !loading
-            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-indigo-500/25 cursor-pointer"
-            : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
-        }`}
+        disabled={loading}
+        className="w-full py-4 bg-indigo-600 rounded-xl flex justify-center items-center"
       >
-        {loading ? (
-          <Loader2 className="animate-spin" size={24} />
-        ) : showToast ? (
-          "Saved! ✓"
-        ) : (
-          "Save Transaction"
-        )}
-      </motion.button>
-    </div>
-  );
-}
-                type="text"
-                placeholder="What for? (e.g. Medicine, Gift)"
-                value={customNote}
-                onChange={(e) => setCustomNote(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Categories Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-10 mt-2">
-        {categories.map((cat) => {
-          const isActive = selectedCategory === cat.name;
-          return (
-            <button
-              key={cat.name}
-              onClick={() => setSelectedCategory(cat.name)}
-              className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
-                isActive
-                  ? `${cat.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
-                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
-              }`}
-            >
-              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
-              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
-                {cat.icon}
-              </div>
-              <span className={`relative z-10 text-sm font-medium transition-colors ${isActive ? "text-white" : "text-gray-500"}`}>
-                {cat.name}
-              </span>
-              {isActive && (
-                <motion.div 
-                  layoutId="active-selection-indicator"
-                  className="absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_white]"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main Action Button */}
-      <motion.button
-        whileTap={{ scale: 0.94 }}
-        onClick={handleAdd}
-        disabled={!amount || !selectedCategory || loading}
-        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 shadow-2xl flex items-center justify-center gap-2 ${
-          amount && selectedCategory && !loading
-            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-indigo-500/25 cursor-pointer"
-            : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
-        }`}
-      >
-        {loading ? (
-          <Loader2 className="animate-spin" size={24} />
-        ) : showToast ? (
-          "Saved! ✓"
-        ) : (
-          "Save Transaction"
-        )}
-      </motion.button>
+        {loading ? <Loader2 className="animate-spin" /> : "Save"}
+      </button>
     </div>
   );
 }
