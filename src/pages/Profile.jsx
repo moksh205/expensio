@@ -10,6 +10,14 @@ import { useNavigate } from "react-router-dom";
 export default function Profile({ expenses = [], resetData, user, onLogout }) {
   const [name, setName] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  
+  // ✅ STEP 1: Custom Confirm State
+  const [confirmState, setConfirmState] = useState({
+    show: false,
+    message: "",
+    onConfirm: null,
+  });
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,7 +25,25 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     if (savedName) setName(savedName);
   }, []);
 
-  // ✅ FIXED: Functional update for Toast to prevent stale state bugs
+  // ✅ STEP 2: Override window.confirm with a Promise
+  useEffect(() => {
+    const originalConfirm = window.confirm;
+
+    window.confirm = (message) => {
+      return new Promise((resolve) => {
+        setConfirmState({
+          show: true,
+          message,
+          onConfirm: resolve,
+        });
+      });
+    };
+
+    return () => {
+      window.confirm = originalConfirm;
+    };
+  }, []);
+
   const triggerToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -28,7 +54,6 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
   const handleSave = () => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    
     localStorage.setItem("username", trimmedName);
     setName(trimmedName);
     triggerToast("Profile Updated", "success");
@@ -43,19 +68,17 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     }
   };
 
-  // ✅ FIXED: Safety check for total calculation to prevent NaN
   const total = expenses.reduce((sum, e) => {
     const amt = Number(e.amount);
     return sum + (isNaN(amt) ? 0 : amt);
   }, 0);
 
-  // ✅ FIXED: Safe displayName handling
   const userIdentifier = user?.email || name || "Guest User";
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
       
-      {/* 🔹 CUSTOM TOAST SYSTEM */}
+      {/* 🔹 TOAST SYSTEM */}
       <AnimatePresence>
         {toast.show && (
           <motion.div
@@ -77,12 +100,11 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
                 {toast.type === "warning" && <AlertTriangle size={16} className="text-black" />}
                 {toast.type === "info" && <Info size={16} className="text-black" />}
               </div>
-              <div>
+              <div className="flex-1">
                 <p className={`text-sm font-bold ${
                   toast.type === "success" ? "text-emerald-400" :
                   toast.type === "warning" ? "text-red-400" : "text-indigo-400"
                 }`}>{toast.message}</p>
-                <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mt-1">Expensio Cloud</p>
               </div>
             </div>
           </motion.div>
@@ -113,7 +135,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         </p>
       </header>
 
-      {/* 🔹 Auth / Sync Section */}
+      {/* 🔹 Auth Section */}
       <section className="mb-8">
         {!user ? (
           <button
@@ -143,7 +165,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         )}
       </section>
 
-      {/* 🔹 Settings Section */}
+      {/* 🔹 Settings */}
       <section className="mb-10 space-y-4">
         <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Preferences</p>
         <div className="relative flex items-center">
@@ -163,7 +185,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         </div>
       </section>
 
-      {/* 🔹 Bento Stats Grid */}
+      {/* 🔹 Bento Stats */}
       <section className="grid grid-cols-2 gap-4 mb-10">
         <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center group active:scale-95 transition-transform">
           <div className="w-10 h-10 rounded-2xl bg-indigo-500/5 flex items-center justify-center mb-3">
@@ -186,8 +208,10 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
       <section>
         <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">Danger Zone</p>
         <button
-          onClick={() => {
-            if (window.confirm("Permanent Action: Erase all data?")) {
+          onClick={async () => {
+            // ✅ Async call to our new Promise-based confirm
+            const confirmed = await window.confirm("Permanent Action: Erase all data and logs?");
+            if (confirmed) {
               resetData();
               triggerToast("All Data Cleared", "warning");
             }
@@ -207,6 +231,60 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
       <footer className="mt-16 text-center">
         <p className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-800">Expensio Cloud • v1.0.4</p>
       </footer>
+
+      {/* ✅ STEP 3: CUSTOM MODAL OVERLAY */}
+      <AnimatePresence>
+        {confirmState.show && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md px-6"
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="w-full max-w-sm bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl"
+            >
+              <div className="w-16 h-16 mx-auto mb-6 rounded-[1.5rem] bg-red-500/10 flex items-center justify-center">
+                <Trash2 className="text-red-500" size={28} />
+              </div>
+
+              <h3 className="text-center text-xl font-black tracking-tight mb-2">
+                Confirm Action
+              </h3>
+
+              <p className="text-center text-xs text-gray-500 mb-8 leading-relaxed">
+                {confirmState.message}
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    confirmState.onConfirm(false);
+                    setConfirmState({ show: false, message: "", onConfirm: null });
+                  }}
+                  className="flex-1 py-4 rounded-[1.5rem] bg-white/[0.05] text-gray-400 font-bold active:scale-95 transition-transform"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={() => {
+                    confirmState.onConfirm(true);
+                    setConfirmState({ show: false, message: "", onConfirm: null });
+                  }}
+                  className="flex-1 py-4 rounded-[1.5rem] bg-red-500 text-black font-black active:scale-95 transition-transform shadow-lg shadow-red-500/20"
+                >
+                  Confirm
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
