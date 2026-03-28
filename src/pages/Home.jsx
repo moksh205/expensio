@@ -33,12 +33,15 @@ export default function Home({ expenses = [], onDelete, username }) {
       : sum;
   }, 0);
 
-  const todayTotal = expenses
-    .filter((e) => {
-      const d = new Date(e.created_at || e.id);
-      return d.toLocaleDateString("en-CA") === today;
-    })
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+ const todayTotal = expenses
+  .filter((e) => {
+    const rawDate = e.created_at || e.date;
+    if (!rawDate) return false;
+
+    const d = new Date(rawDate);
+    return d.toLocaleDateString("en-CA") === today;
+  })
+  .reduce((sum, e) => sum + Number(e.amount), 0);
 
   const recentTransactions = [...expenses]
     .sort((a, b) => new Date(b.created_at || b.id) - new Date(a.created_at || a.id))
