@@ -11,7 +11,7 @@ export default function Home({ expenses = [], onDelete, username }) {
   // Track which item is swiped/selected for deletion
   const [selectedId, setSelectedId] = useState(null);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
@@ -36,7 +36,7 @@ export default function Home({ expenses = [], onDelete, username }) {
   const todayTotal = expenses
     .filter((e) => {
       const d = new Date(e.created_at || e.id);
-      return d.toISOString().split("T")[0] === today;
+      return d.toLocaleDateString("en-CA") === today;
     })
     .reduce((sum, e) => sum + Number(e.amount), 0);
 

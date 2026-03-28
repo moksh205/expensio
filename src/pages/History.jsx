@@ -40,7 +40,7 @@ export default function History({ expenses = [], onDelete }) {
   });
 
   const grouped = filteredExpenses.reduce((acc, exp) => {
-    const key = getDate(exp).toISOString().split('T')[0];
+    const key = getDate(exp).toLocaleDateString("en-CA");
     if (!acc[key]) acc[key] = { items: [], total: 0 };
     acc[key].items.push(exp);
     acc[key].total += Number(exp.amount);
