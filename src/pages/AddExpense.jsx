@@ -14,6 +14,9 @@ export default function AddExpense({ addExpense }) {
   const [customNote, setCustomNote] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // 🔥 FIX 3: Added state for Toast Timer
+  const [toastTimer, setToastTimer] = useState(null);
 
   const categories = [
     { name: "Food", icon: <Utensils size={18} />, color: "bg-orange-500/20 text-orange-400" },
@@ -30,17 +33,13 @@ export default function AddExpense({ addExpense }) {
     { name: "Other", icon: <MoreHorizontal size={18} />, color: "bg-gray-500/20 text-gray-400" },
   ];
 
-  // ✅ STRICT AMOUNT VALIDATION
-  const sanitizeAmount = (val) => {
-    // Allow only numbers + single decimal
-    const cleaned = val.replace(/[^0-9.]/g, "");
-    const parts = cleaned.split(".");
-    if (parts.length > 2) return parts[0] + "." + parts[1];
-    return cleaned;
-  };
-
   const numAmount = parseFloat(amount);
-  const isValidAmount = !isNaN(numAmount) && numAmount > 0;
+  
+  // 🔥 FIX 1: Prevent "." from breaking the UI state
+  const isValidAmount =
+    !isNaN(numAmount) &&
+    numAmount > 0 &&
+    amount !== ".";
 
   const isValidNote =
     selectedCategory !== "Other" ||
@@ -57,10 +56,11 @@ export default function AddExpense({ addExpense }) {
 
     setLoading(true);
 
+    // 🔥 FIX 2: Preserves custom note if user typed one, fallback to category otherwise
     const finalNote =
       selectedCategory === "Other"
         ? customNote.trim()
-        : selectedCategory.trim();
+        : customNote.trim() || selectedCategory;
 
     const expenseData = {
       id: Date.now(),
@@ -75,21 +75,14 @@ export default function AddExpense({ addExpense }) {
 
       if (!user) {
         let guestData = [];
-
         try {
-          const raw = localStorage.getItem("guest_expenses");
-          guestData = raw ? JSON.parse(raw) : [];
+          guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
         } catch {
           guestData = [];
         }
 
         guestData.push(expenseData);
-
-        localStorage.setItem(
-          "guest_expenses",
-          JSON.stringify(guestData)
-        );
-
+        localStorage.setItem("guest_expenses", JSON.stringify(guestData));
         addExpense(expenseData);
       } else {
         const { data: insertedData, error } = await supabase
@@ -106,17 +99,18 @@ export default function AddExpense({ addExpense }) {
           .select();
 
         if (error) throw error;
-
         addExpense(insertedData[0]);
       }
 
-      // ✅ SUCCESS
       setShowToast(true);
       setAmount("");
       setSelectedCategory("");
       setCustomNote("");
 
-      setTimeout(() => setShowToast(false), 3000);
+      // 🔥 FIX 3: Clear existing timeout to prevent race conditions
+      if (toastTimer) clearTimeout(toastTimer);
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      setToastTimer(timer);
 
     } catch (err) {
       console.error("Error saving:", err.message);
@@ -153,43 +147,85 @@ export default function AddExpense({ addExpense }) {
         Quick Add
       </h1>
 
-      {/* Amount Input */}
       <div className="flex flex-col items-center justify-center mb-6 mt-4">
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">
           Transaction Amount
         </p>
 
         <div className="relative flex justify-center items-center w-full max-w-[260px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
-          <span className={`absolute left-3 text-4xl font-light ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
+          <span className={`absolute left-3 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
             ₹
           </span>
 
           <input
-            type="text"
+            type="text" 
             inputMode="decimal"
             placeholder="0"
             value={amount}
             onChange={(e) => {
-              const val = sanitizeAmount(e.target.value);
-              if (val.length <= 8) setAmount(val);
+              const val = e.target.value;
+              if (/^\d*\.?\d*$/.test(val) && val.length <= 8) {
+                setAmount(val);
+              }
             }}
-            className={`w-full bg-transparent text-center font-black outline-none pl-12 pr-4 ${
+            className={`w-full bg-transparent text-center font-black outline-none placeholder:text-white/5 transition-all duration-300 px-12 ${
               amount.length > 5 ? "text-4xl" : "text-6xl"
             }`}
           />
         </div>
       </div>
 
-      {/* Rest UI unchanged */}
-      {/* Categories + Button exactly same */}
+      <AnimatePresence mode="wait">
+        {selectedCategory === "Other" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 20 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <input
+              type="text"
+              placeholder="What for? (e.g. Medicine, Gift)"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-2 gap-3 mb-10">
+        {categories.map((cat) => {
+          const isActive = selectedCategory === cat.name;
+          return (
+            <button
+              key={cat.name}
+              onClick={() => setSelectedCategory(cat.name)}
+              className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                isActive
+                  ? `${cat.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
+                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
+              }`}
+            >
+              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
+              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
+                {cat.icon}
+              </div>
+              <span className={`relative z-10 text-sm font-medium ${isActive ? "text-white" : "text-gray-500"}`}>
+                {cat.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <motion.button
         whileTap={canSubmit ? { scale: 0.94 } : {}}
         onClick={handleAdd}
         disabled={!canSubmit}
-        className={`w-full py-5 rounded-[2rem] font-bold text-lg ${
+        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 ${
           canSubmit
-            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-lg shadow-indigo-500/20"
+            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-[0_10px_30px_rgba(99,102,241,0.2)]"
             : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
         }`}
       >
