@@ -15,7 +15,6 @@ export default function AddExpense({ addExpense }) {
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 🔥 Upgraded Categories List
   const categories = [
     { name: "Food", icon: <Utensils size={18} />, color: "bg-orange-500/20 text-orange-400" },
     { name: "Ride", icon: <Bike size={18} />, color: "bg-blue-500/20 text-blue-400" },
@@ -31,7 +30,6 @@ export default function AddExpense({ addExpense }) {
     { name: "Other", icon: <MoreHorizontal size={18} />, color: "bg-gray-500/20 text-gray-400" },
   ];
 
-  // ✅ SAFE AMOUNT PARSING
   const numAmount = parseFloat(amount);
   const isValidAmount = !isNaN(numAmount) && numAmount > 0;
 
@@ -46,10 +44,7 @@ export default function AddExpense({ addExpense }) {
     !loading;
 
   const handleAdd = async () => {
-    if (!canSubmit) return;
-
-    // 🔥 Prevent double click spam
-    if (loading) return;
+    if (!canSubmit || loading) return;
 
     setLoading(true);
 
@@ -63,29 +58,22 @@ export default function AddExpense({ addExpense }) {
       amount: numAmount,
       category: selectedCategory,
       note: finalNote,
-      created_at: new Date().toISOString(), // ✅ important for consistency
+      created_at: new Date().toISOString(),
     };
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // 🟡 GUEST MODE SAFE PARSE
         let guestData = [];
         try {
-          guestData =
-            JSON.parse(localStorage.getItem("guest_expenses")) || [];
+          guestData = JSON.parse(localStorage.getItem("guest_expenses")) || [];
         } catch {
           guestData = [];
         }
 
         guestData.push(expenseData);
-
-        localStorage.setItem(
-          "guest_expenses",
-          JSON.stringify(guestData)
-        );
-
+        localStorage.setItem("guest_expenses", JSON.stringify(guestData));
         addExpense(expenseData);
       } else {
         const { data: insertedData, error } = await supabase
@@ -96,17 +84,15 @@ export default function AddExpense({ addExpense }) {
               amount: expenseData.amount,
               category: expenseData.category,
               note: expenseData.note,
-              created_at: expenseData.created_at, // ✅ FIXED
+              created_at: expenseData.created_at,
             },
           ])
           .select();
 
         if (error) throw error;
-
         addExpense(insertedData[0]);
       }
 
-      // ✅ SUCCESS UI
       setShowToast(true);
       setAmount("");
       setSelectedCategory("");
@@ -141,6 +127,112 @@ export default function AddExpense({ addExpense }) {
                 <p className="text-[10px] text-emerald-500/60 uppercase tracking-widest font-bold">Cloud Synced</p>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <h1 className="text-2xl font-bold tracking-tight mb-6 bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
+        Quick Add
+      </h1>
+
+      {/* Amount Display */}
+      <div className="flex flex-col items-center justify-center mb-6 mt-4">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">
+          Transaction Amount
+        </p>
+
+        <div className="relative flex justify-center items-center w-full max-w-[260px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
+          <span className={`absolute left-3 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
+            ₹
+          </span>
+
+          <input
+            type="text" // 🔥 FIXED: Changed to text to prevent React desync crashes
+            inputMode="decimal" // Opens number keyboard on phones
+            placeholder="0"
+            value={amount}
+            onChange={(e) => {
+              const val = e.target.value;
+              // 🔥 FIXED: Regex ensures only numbers/decimals. Blocks length safely.
+              if (/^\d*\.?\d*$/.test(val) && val.length <= 8) {
+                setAmount(val);
+              }
+            }}
+            // 🔥 FIXED padding: px-12 keeps the number perfectly dead-center
+            className={`w-full bg-transparent text-center font-black outline-none placeholder:text-white/5 transition-all duration-300 px-12 ${
+              amount.length > 5 ? "text-4xl" : "text-6xl"
+            }`}
+          />
+        </div>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {selectedCategory === "Other" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 20 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <input
+              type="text"
+              placeholder="What for? (e.g. Medicine, Gift)"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Categories Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-10">
+        {categories.map((cat) => {
+          const isActive = selectedCategory === cat.name;
+          return (
+            <button
+              key={cat.name}
+              onClick={() => setSelectedCategory(cat.name)}
+              className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                isActive
+                  ? `${cat.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
+                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
+              }`}
+            >
+              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
+              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
+                {cat.icon}
+              </div>
+              <span className={`relative z-10 text-sm font-medium ${isActive ? "text-white" : "text-gray-500"}`}>
+                {cat.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Button */}
+      <motion.button
+        whileTap={canSubmit ? { scale: 0.94 } : {}}
+        onClick={handleAdd}
+        disabled={!canSubmit}
+        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 ${
+          canSubmit
+            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-[0_10px_30px_rgba(99,102,241,0.2)]"
+            : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
+        }`}
+      >
+        {loading ? (
+          <Loader2 className="animate-spin" size={24} />
+        ) : showToast ? (
+          "Saved! ✓"
+        ) : (
+          "Save Transaction"
+        )}
+      </motion.button>
+    </div>
+  );
+}
           </motion.div>
         )}
       </AnimatePresence>
