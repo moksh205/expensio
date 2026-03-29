@@ -122,7 +122,8 @@ export default function AddExpense({ addExpense }) {
   };
 
   return (
-    <div className="relative p-6 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-hidden font-sans">
+    // 🔥 Added pb-32 and overflow-y-auto so the grid clears the bottom nav
+    <div className="relative p-6 pb-32 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-y-auto font-sans">
       
       <AnimatePresence>
         {showToast && (
@@ -149,8 +150,8 @@ export default function AddExpense({ addExpense }) {
         Quick Add
       </h1>
 
-      {/* Amount */}
-      <div className="flex flex-col items-center justify-center mb-8 mt-4">
+      {/* Amount - Reduced mb to pull categories closer */}
+      <div className="flex flex-col items-center justify-center mb-6 mt-4">
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">
           Transaction Amount
         </p>
@@ -171,30 +172,28 @@ export default function AddExpense({ addExpense }) {
         </div>
       </div>
 
-      {/* Other */}
-      <div className="min-h-[85px]">
-        <AnimatePresence mode="wait">
-          {selectedCategory === "Other" && (
-            <motion.div
-              initial={{ opacity: 0, y: -10, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: "auto" }}
-              exit={{ opacity: 0, y: -10, height: 0 }}
-              className="mt-2 overflow-hidden"
-            >
-              <input
-                type="text"
-                placeholder="What for? (e.g. Medicine, Gift)"
-                value={customNote}
-                onChange={(e) => setCustomNote(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* 🔥 FIXED SPACE: Removed fixed height wrapper, only expands when needed */}
+      <AnimatePresence mode="wait">
+        {selectedCategory === "Other" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 20 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <input
+              type="text"
+              placeholder="What for? (e.g. Medicine, Gift)"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Categories */}
-      <div className="grid grid-cols-2 gap-3 mb-10 mt-2">
+      {/* Categories Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-10">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.name;
           return (
