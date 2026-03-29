@@ -100,7 +100,7 @@ export default function Home({ expenses = [], onDelete, username }) {
     .filter(([_, val]) => val > 0)
     .sort((a, b) => b[1] - a[1])[0] || null;
 
-  // 🔥 SANITY CHECK FALLBACK (Fixes the 1 Crore Food vs 10k Electricity issue)
+  // 🔥 SANITY CHECK FALLBACK
   const categoryTotals = expenses.reduce((acc, exp) => {
     const d = new Date(exp.created_at || exp.date);
     if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
@@ -113,12 +113,16 @@ export default function Home({ expenses = [], onDelete, username }) {
   const topCategoryEntry = Object.entries(categoryTotals)
     .sort((a, b) => b[1] - a[1])[0] || null;
 
-  // If we have NO real items, OR if the top generic category is bigger than our top real item
-  if (!topItemEntry || (topCategoryEntry && topCategoryEntry[1] > (topItemEntry[1] || 0))) {
+  // 🔥 THE FIX: Never allow the generic "Other" bucket to overwrite a typed note!
+  const isCategoryBigger = topCategoryEntry && topItemEntry && topCategoryEntry[1] > topItemEntry[1];
+  const isNotOtherBucket = topCategoryEntry && topCategoryEntry[0] !== "Other";
+
+  // Override only if we have NO items at all, OR if a valid category (like Food) beats our top item
+  if (!topItemEntry || (isCategoryBigger && isNotOtherBucket)) {
     topItemEntry = topCategoryEntry;
   }
 
-  // 🔥 FIX 0% GLITCH: If it's greater than 0 but rounds to 0, show "<1%"
+  // Percentage & Name Formatting
   let topItemPercentage = 0;
   let displayPercentage = "0%";
 
@@ -126,7 +130,6 @@ export default function Home({ expenses = [], onDelete, username }) {
     const rawPercentage = (topItemEntry[1] / monthlyTotal) * 100;
     topItemPercentage = Math.round(rawPercentage);
     
-    // Safely format the string to prevent "0%" if they actually spent money
     if (topItemPercentage === 0 && rawPercentage > 0) {
       displayPercentage = "<1%";
     } else {
@@ -195,7 +198,7 @@ export default function Home({ expenses = [], onDelete, username }) {
           <p className="text-2xl font-black text-white">{expenses.length}</p>
         </div>
 
-        {/* 🔥 Top Spending Card: Safe Icon Lookup & Grouping */}
+        {/* 🔥 Top Spending Card */}
         {topItemEntry && (() => {
           const normalized = normalizeCategory({ 
             category: topItemEntry[0], 
