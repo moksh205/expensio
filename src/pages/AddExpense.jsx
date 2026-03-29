@@ -122,7 +122,6 @@ export default function AddExpense({ addExpense }) {
   };
 
   return (
-    // 🔥 Added pb-32 and overflow-y-auto so the grid clears the bottom nav
     <div className="relative p-6 pb-32 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-y-auto font-sans">
       
       <AnimatePresence>
@@ -141,6 +140,115 @@ export default function AddExpense({ addExpense }) {
                 <p className="text-sm font-bold text-emerald-400">Saved Successfully</p>
                 <p className="text-[10px] text-emerald-500/60 uppercase tracking-widest font-bold">Cloud Synced</p>
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <h1 className="text-2xl font-bold tracking-tight mb-6 bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
+        Quick Add
+      </h1>
+
+      {/* 🔥 FIXED AMOUNT DISPLAY */}
+      <div className="flex flex-col items-center justify-center mb-6 mt-4">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">
+          Transaction Amount
+        </p>
+
+        {/* Made max-w slightly wider (260px) to comfortably hold larger numbers */}
+        <div className="relative flex justify-center items-center w-full max-w-[260px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
+          <span className={`absolute left-3 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
+            ₹
+          </span>
+
+          <input
+            type="number"
+            inputMode="decimal"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => {
+              // Lock input length to a max of 8 characters to prevent infinite bleeding
+              if (e.target.value.length <= 8) {
+                setAmount(e.target.value);
+              }
+            }}
+            // Added pl-12 so text NEVER touches the ₹ symbol. 
+            // Added dynamic text shrinking (text-6xl -> text-4xl) if length > 5
+            className={`w-full bg-transparent text-center font-black outline-none placeholder:text-white/5 transition-all duration-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-12 pr-4 ${
+              amount.length > 5 ? "text-4xl" : "text-6xl"
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* Dynamic Note Entry */}
+      <AnimatePresence mode="wait">
+        {selectedCategory === "Other" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 20 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <input
+              type="text"
+              placeholder="What for? (e.g. Medicine, Gift)"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Categories Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-10">
+        {categories.map((cat) => {
+          const isActive = selectedCategory === cat.name;
+          return (
+            <button
+              key={cat.name}
+              onClick={() => setSelectedCategory(cat.name)}
+              className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                isActive
+                  ? `${cat.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
+                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
+              }`}
+            >
+              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
+              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${cat.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
+                {cat.icon}
+              </div>
+              <span className={`relative z-10 text-sm font-medium ${isActive ? "text-white" : "text-gray-500"}`}>
+                {cat.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Button */}
+      <motion.button
+        whileTap={canSubmit ? { scale: 0.94 } : {}}
+        onClick={handleAdd}
+        disabled={!canSubmit}
+        className={`w-full py-5 rounded-[2rem] font-bold text-lg ${
+          canSubmit
+            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-lg shadow-indigo-500/20"
+            : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
+        }`}
+      >
+        {loading ? (
+          <Loader2 className="animate-spin" size={24} />
+        ) : showToast ? (
+          "Saved! ✓"
+        ) : (
+          "Save Transaction"
+        )}
+      </motion.button>
+    </div>
+  );
+}
             </div>
           </motion.div>
         )}
