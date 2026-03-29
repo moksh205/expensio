@@ -2,7 +2,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Utensils, Bike, ShoppingCart, Receipt, 
-  Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2 
+  Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2,
+  ShoppingBag, Fuel, Pill, Ticket 
 } from "lucide-react";
 
 import { supabase } from "../supabase";
@@ -14,6 +15,7 @@ export default function AddExpense({ addExpense }) {
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 🔥 Upgraded Categories List
   const categories = [
     { name: "Food", icon: <Utensils size={18} />, color: "bg-orange-500/20 text-orange-400" },
     { name: "Ride", icon: <Bike size={18} />, color: "bg-blue-500/20 text-blue-400" },
@@ -22,6 +24,10 @@ export default function AddExpense({ addExpense }) {
     { name: "Shopping", icon: <ShoppingCart size={18} />, color: "bg-purple-500/20 text-purple-400" },
     { name: "Bills", icon: <Receipt size={18} />, color: "bg-emerald-500/20 text-emerald-400" },
     { name: "Juice", icon: <Coffee size={18} />, color: "bg-pink-500/20 text-pink-400" },
+    { name: "Grocery", icon: <ShoppingBag size={18} />, color: "bg-teal-500/20 text-teal-400" },
+    { name: "Fuel", icon: <Fuel size={18} />, color: "bg-amber-500/20 text-amber-400" },
+    { name: "Health", icon: <Pill size={18} />, color: "bg-rose-500/20 text-rose-400" },
+    { name: "Entertainment", icon: <Ticket size={18} />, color: "bg-cyan-500/20 text-cyan-400" },
     { name: "Other", icon: <MoreHorizontal size={18} />, color: "bg-gray-500/20 text-gray-400" },
   ];
 
@@ -220,7 +226,7 @@ export default function AddExpense({ addExpense }) {
         disabled={!canSubmit}
         className={`w-full py-5 rounded-[2rem] font-bold text-lg ${
           canSubmit
-            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white"
+            ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-lg shadow-indigo-500/20"
             : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
         }`}
       >
