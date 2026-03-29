@@ -95,30 +95,44 @@ export default function Home({ expenses = [], onDelete, username }) {
     return acc;
   }, {});
 
-  // ✅ Get top item
+  // ✅ Get top REAL item
   let topItemEntry = Object.entries(noteTotals)
     .filter(([_, val]) => val > 0)
-    .sort((a, b) => b[1] - a[1])[0];
+    .sort((a, b) => b[1] - a[1])[0] || null;
 
-  const hasRealItems = Object.keys(noteTotals).length > 0;
+  // 🔥 SANITY CHECK FALLBACK (Fixes the 1 Crore Food vs 10k Electricity issue)
+  const categoryTotals = expenses.reduce((acc, exp) => {
+    const d = new Date(exp.created_at || exp.date);
+    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+      const normalized = normalizeCategory(exp);
+      acc[normalized] = (acc[normalized] || 0) + Number(exp.amount);
+    }
+    return acc;
+  }, {});
 
-  // 🔥 STRICT FALLBACK → only use category if absolutely NO valid real notes exist
-  if (!topItemEntry && !hasRealItems) {
-    const categoryTotals = expenses.reduce((acc, exp) => {
-      const d = new Date(exp.created_at || exp.date);
-      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-        const normalized = normalizeCategory(exp);
-        acc[normalized] = (acc[normalized] || 0) + Number(exp.amount);
-      }
-      return acc;
-    }, {});
+  const topCategoryEntry = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])[0] || null;
 
-    topItemEntry = Object.entries(categoryTotals)
-      .sort((a, b) => b[1] - a[1])[0] || null;
+  // If we have NO real items, OR if the top generic category is bigger than our top real item
+  if (!topItemEntry || (topCategoryEntry && topCategoryEntry[1] > (topItemEntry[1] || 0))) {
+    topItemEntry = topCategoryEntry;
   }
 
-  const topItemPercentage = topItemEntry && monthlyTotal > 0 
-    ? Math.round((topItemEntry[1] / monthlyTotal) * 100) : 0;
+  // 🔥 FIX 0% GLITCH: If it's greater than 0 but rounds to 0, show "<1%"
+  let topItemPercentage = 0;
+  let displayPercentage = "0%";
+
+  if (topItemEntry && monthlyTotal > 0) {
+    const rawPercentage = (topItemEntry[1] / monthlyTotal) * 100;
+    topItemPercentage = Math.round(rawPercentage);
+    
+    // Safely format the string to prevent "0%" if they actually spent money
+    if (topItemPercentage === 0 && rawPercentage > 0) {
+      displayPercentage = "<1%";
+    } else {
+      displayPercentage = `${topItemPercentage}%`;
+    }
+  }
 
   const displayTopName = topItemEntry 
     ? topItemEntry[0].charAt(0).toUpperCase() + topItemEntry[0].slice(1) 
@@ -207,7 +221,7 @@ export default function Home({ expenses = [], onDelete, username }) {
                 </div>
                 <div className="text-right">
                   <p className="font-black text-white text-xl tracking-tight">₹{topItemEntry[1].toLocaleString("en-IN")}</p>
-                  <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">{topItemPercentage}% Contribution</p>
+                  <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">{displayPercentage} Contribution</p>
                 </div>
               </div>
               <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
