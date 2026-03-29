@@ -58,16 +58,15 @@ export default function History({ expenses = [], onDelete }) {
 
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
 
-  // 🔥 FIX 1 & 2: Native deterministic date parsing, clean memo dependency array
   const processedExpenses = useMemo(() => {
     return safeExpenses.reduce((acc, exp) => {
       const raw = exp?.created_at || exp?.date;
       if (!raw) return acc;
 
-      const d = new Date(raw);
-      if (isNaN(d.getTime())) return acc;
+      // 🔥 FINAL FIX: Pure, clean, native parsing. If the DB is wrong, fix the DB.
+      const localDate = new Date(raw);
+      if (isNaN(localDate.getTime())) return acc;
 
-      const localDate = new Date(d); 
       const normalized = normalizeCategory(exp);
 
       acc.push({ ...exp, localDate, normalized });
@@ -141,6 +140,155 @@ export default function History({ expenses = [], onDelete }) {
           <div className="flex flex-col items-center justify-center pointer-events-none">
             <h3 className="text-xs font-black tracking-[0.2em] uppercase text-white">{months[selectedMonth]}</h3>
             <p className="text-[9px] font-bold text-gray-600 tracking-widest">{selectedYear}</p>
+          </div>
+          <button onClick={() => handleMonthChange("next")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </section>
+
+      {/* Category Filters */}
+      <section className="mb-8">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5 pb-4">
+          {categories.map(cat => {
+            const isAll = cat === "All";
+            const icon = isAll ? <Filter size={14} /> : categoryIcons[cat].icon;
+            const isActive = activeCategory === cat;
+
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setSelectedId(null); 
+                }}
+                className={`flex items-center gap-2 px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border shadow-sm ${
+                  isActive 
+                  ? "bg-white text-black border-white shadow-white/10 scale-95" 
+                  : "bg-[#0c0c0c] border-white/5 text-gray-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <span className={isActive ? "text-black" : "text-gray-500"}>{icon}</span>
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Transactions List */}
+      <div className="w-full">
+        <AnimatePresence mode="popLayout">
+          {dates.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20">
+               <div className="w-16 h-16 bg-[#0c0c0c] rounded-[2rem] flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-xl">
+                  <Calendar size={24} className="text-gray-700" />
+               </div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">No logs for {activeCategory}</p>
+            </motion.div>
+          ) : (
+            <motion.div key="list" className="space-y-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {dates.map(date => {
+                const [y, m, d] = date.split("-");
+                const displayDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+
+                if (isNaN(displayDate.getTime())) return null;
+
+                return (
+                  <motion.div layout key={date} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                    
+                    {/* Date Group Header */}
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="px-3 py-1.5 bg-white/5 rounded-lg border border-white/5">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                          {displayDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </span>
+                      </div>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                      <span className="text-[10px] font-bold text-gray-600 font-mono tracking-tighter">
+                        ₹{grouped[date].total.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    {/* Date Items */}
+                    <div className="space-y-3">
+                      <AnimatePresence mode="popLayout">
+                        {grouped[date].items.map((item) => {
+                          const categoryData = categoryIcons[item.normalized] || categoryIcons.Other;
+                          
+                          const stableId = item.id || item.created_at || item.date;
+                          const isSelected = selectedId === stableId;
+                          
+                          return (
+                            <motion.div
+                              layout
+                              key={stableId}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                              className="relative overflow-hidden rounded-[1.8rem]"
+                            >
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (typeof onDelete === 'function') {
+                                    onDelete(stableId);
+                                  }
+                                  setSelectedId(null);
+                                }}
+                                className="absolute right-0 inset-y-0 w-20 bg-red-600 flex items-center justify-center text-white active:bg-red-700 transition-colors z-0"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+
+                              <motion.div
+                                layout
+                                animate={{ x: isSelected ? -80 : 0 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                                onClick={() => setSelectedId(isSelected ? null : stableId)}
+                                className={`relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 flex justify-between items-center cursor-pointer active:bg-white/[0.02] transition-colors ${isSelected ? 'border-red-500/30' : ''}`}
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className={`p-2.5 rounded-2xl ${categoryData.color} transition-transform duration-300 ${isSelected ? 'scale-90' : ''}`}>
+                                    {categoryData.icon}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-sm tracking-tight leading-tight">
+                                      {item.note || item.normalized}
+                                    </p>
+                                    <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
+                                      <Clock size={8} /> 
+                                      {item.localDate.toLocaleTimeString("en-IN", {
+                                        hour: "2-digit",
+                                        minute: "2-digit"
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className={`text-right transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
+                                  <p className="font-black text-white text-base">₹{(Number(item.amount) || 0).toLocaleString('en-IN')}</p>
+                                </div>
+                              </motion.div>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </div>
+  );
+}
           </div>
           <button onClick={() => handleMonthChange("next")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
             <ChevronRight size={18} />
