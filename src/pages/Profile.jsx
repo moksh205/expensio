@@ -66,7 +66,6 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     }
   };
 
-  // 🔥 THE ULTIMATE CSV EXPORT FIX
   const handleExportCSV = () => {
     if (!expenses || expenses.length === 0) {
       triggerToast("No data to export", "info");
@@ -76,21 +75,17 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     try {
       const headers = ["Date", "Time", "Amount", "Category", "Note"];
 
-      // 1. Reusable, bulletproof parsing function
+      // 1. Pragmatic parser with manual +5.5 hour IST offset
       const parseDate = (raw) => {
         if (!raw) return new Date(NaN);
-        let dateStr = String(raw).replace(" ", "T");
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) return new Date(NaN);
         
-        // Target only trailing timezone offsets, ignore internal date hyphens
-        const hasTimezone = /[+-]\d{2}:?\d{2}$/.test(dateStr) || dateStr.endsWith("Z");
-        
-        if (dateStr.includes("T") && !hasTimezone) {
-          dateStr += "Z";
-        }
-        return new Date(dateStr);
+        // Explicitly add 5.5 hours to correct the DB offset
+        return new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
       };
 
-      // 2. Sort chronologically using the synchronized parser
+      // 2. Sort chronologically 
       const sortedExpenses = [...expenses].sort(
         (a, b) => parseDate(b.created_at || b.date) - parseDate(a.created_at || a.date)
       );
@@ -103,7 +98,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         const safeCategory = exp.category || "Other";
         const safeNote = `"${(exp.note || "").replace(/"/g, '""')}"`;
 
-        // Tiny Edge Case: Graceful fallback for completely corrupt data
+        // Graceful fallback for completely corrupt data
         if (isNaN(d.getTime())) {
           return ["Invalid Date", "--:--", safeAmount, safeCategory, safeNote];
         }
