@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Save, Trash2, Wallet, Database, 
   ShieldAlert, ChevronRight, LogOut, LogIn, CloudSync,
-  CheckCircle2, AlertTriangle, Info
+  CheckCircle2, AlertTriangle, Info, Download
 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 
@@ -11,7 +11,6 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
   const [name, setName] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   
-  // ✅ STEP 1: Custom Confirm State
   const [confirmState, setConfirmState] = useState({
     show: false,
     message: "",
@@ -25,7 +24,6 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     if (savedName) setName(savedName);
   }, []);
 
-  // ✅ STEP 2: Override window.confirm with a Promise
   useEffect(() => {
     const originalConfirm = window.confirm;
 
@@ -65,6 +63,82 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
       triggerToast("Logged Out Successfully", "info");
     } catch (err) {
       triggerToast("Logout Failed", "warning");
+    }
+  };
+
+  // 🔥 THE ULTIMATE CSV EXPORT FIX
+  const handleExportCSV = () => {
+    if (!expenses || expenses.length === 0) {
+      triggerToast("No data to export", "info");
+      return;
+    }
+
+    try {
+      const headers = ["Date", "Time", "Amount", "Category", "Note"];
+
+      // 1. Reusable, bulletproof parsing function
+      const parseDate = (raw) => {
+        if (!raw) return new Date(NaN);
+        let dateStr = String(raw).replace(" ", "T");
+        
+        // Target only trailing timezone offsets, ignore internal date hyphens
+        const hasTimezone = /[+-]\d{2}:?\d{2}$/.test(dateStr) || dateStr.endsWith("Z");
+        
+        if (dateStr.includes("T") && !hasTimezone) {
+          dateStr += "Z";
+        }
+        return new Date(dateStr);
+      };
+
+      // 2. Sort chronologically using the synchronized parser
+      const sortedExpenses = [...expenses].sort(
+        (a, b) => parseDate(b.created_at || b.date) - parseDate(a.created_at || a.date)
+      );
+
+      // 3. Map rows safely
+      const rows = sortedExpenses.map((exp) => {
+        const d = parseDate(exp.created_at || exp.date);
+
+        const safeAmount = Number(exp.amount) || 0;
+        const safeCategory = exp.category || "Other";
+        const safeNote = `"${(exp.note || "").replace(/"/g, '""')}"`;
+
+        // Tiny Edge Case: Graceful fallback for completely corrupt data
+        if (isNaN(d.getTime())) {
+          return ["Invalid Date", "--:--", safeAmount, safeCategory, safeNote];
+        }
+
+        return [
+          d.toLocaleDateString("en-IN"),
+          d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+          safeAmount,
+          safeCategory,
+          safeNote
+        ];
+      });
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map(r => r.join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      
+      const dateString = new Date().toLocaleDateString("en-IN").replace(/\//g, '-');
+      link.download = `expensio_${dateString}.csv`;
+      
+      link.click();
+      
+      // Prevent memory leaks
+      URL.revokeObjectURL(link.href);
+
+      triggerToast("CSV Downloaded", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("Export Failed", "warning");
     }
   };
 
@@ -204,12 +278,31 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         </div>
       </section>
 
+      {/* 🔹 Export Data */}
+      <section className="mb-10">
+        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">
+          Data
+        </p>
+
+        <button
+          onClick={handleExportCSV}
+          className="w-full group bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] p-5 rounded-[2rem] flex items-center justify-between transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4 text-white">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center group-hover:rotate-12 transition-transform">
+              <Download size={18} className="text-indigo-400" />
+            </div>
+            <span className="text-sm font-bold">Export CSV</span>
+          </div>
+          <ChevronRight size={18} className="text-white/20" />
+        </button>
+      </section>
+
       {/* 🔹 Danger Zone */}
       <section>
         <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">Danger Zone</p>
         <button
           onClick={async () => {
-            // ✅ Async call to our new Promise-based confirm
             const confirmed = await window.confirm("Permanent Action: Erase all data and logs?");
             if (confirmed) {
               resetData();
@@ -232,7 +325,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         <p className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-800">Expensio Cloud • v1.0.4</p>
       </footer>
 
-      {/* ✅ STEP 3: CUSTOM MODAL OVERLAY */}
+      {/* ✅ CUSTOM MODAL OVERLAY */}
       <AnimatePresence>
         {confirmState.show && (
           <motion.div
