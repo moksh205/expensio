@@ -1,7 +1,8 @@
 # 💸 Expensio
 
 ![Preview](public/preview.png)
-
+![Preview](public/preview2.png)
+![Preview](public/preview3.png)
 ---
 
 ## 🚀 Overview
@@ -64,7 +65,7 @@ Follow these steps to run the project locally:
 ### 1. Clone the repository
 
 ```
-git clone https://github.com/your-repo/expensio.git
+git clone https://github.com/moksh205/expensio.git
 ```
 
 ### 2. Navigate to the project directory
