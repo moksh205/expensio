@@ -33,7 +33,7 @@ export default function BottomNav() {
 
               <div
                 className={`relative z-10 transition-all duration-300 ${
-                  isActive ? "text-indigo-400 scale-110" : "text-gray-600 hover:text-gray-400"
+                  isActive ? "text-indigo-400 scale-110" : "text-gray-400 hover:text-gray-400"
                 }`}
               >
                 {item.icon}

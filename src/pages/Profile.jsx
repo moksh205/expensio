@@ -203,7 +203,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
         </div>
 
         <h2 className="mt-4 text-xl font-bold tracking-tight truncate px-4">{name || "Guest User"}</h2>
-        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-gray-600 mt-1">
+        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-gray-400 mt-1">
           {user ? "Authenticated" : "Local Storage Mode"}
         </p>
       </header>
@@ -230,7 +230,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
             </div>
             <button 
               onClick={handleLogoutAction} 
-              className="p-3 text-gray-600 hover:text-red-500 transition-colors active:scale-90 flex-shrink-0"
+              className="p-3 text-gray-400 hover:text-red-500 transition-colors active:scale-90 flex-shrink-0"
             >
               <LogOut size={18} />
             </button>
@@ -240,7 +240,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
 
       {/* 🔹 Settings */}
       <section className="mb-10 space-y-4">
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Preferences</p>
+        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Preferences</p>
         <div className="relative flex items-center">
           <input
             type="text"
@@ -264,7 +264,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
           <div className="w-10 h-10 rounded-2xl bg-indigo-500/5 flex items-center justify-center mb-3">
             <Wallet size={20} className="text-indigo-400" />
           </div>
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-600 mb-1 text-center">Net Burn</p>
+          <p className="text-[9px] uppercase font-black tracking-widest text-gray-400 mb-1 text-center">Net Burn</p>
           <p className="text-xl font-black text-white">₹{total.toLocaleString('en-IN')}</p>
         </div>
 
@@ -272,14 +272,14 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/5 flex items-center justify-center mb-3">
             <Database size={20} className="text-emerald-400" />
           </div>
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-600 mb-1 text-center">Entries</p>
+          <p className="text-[9px] uppercase font-black tracking-widest text-gray-400 mb-1 text-center">Entries</p>
           <p className="text-xl font-black text-white">{expenses.length}</p>
         </div>
       </section>
 
       {/* 🔹 Export Data */}
       <section className="mb-10">
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">
+        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">
           Data
         </p>
 
@@ -299,7 +299,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
 
       {/* 🔹 Danger Zone */}
       <section>
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 mb-4">Danger Zone</p>
+        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Danger Zone</p>
         <button
           onClick={async () => {
             const confirmed = await window.confirm("Permanent Action: Erase all data and logs?");

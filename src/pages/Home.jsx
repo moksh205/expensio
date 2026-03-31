@@ -157,7 +157,7 @@ export default function Home({ expenses = [], onDelete, username }) {
       {/* Header */}
       <header className="flex justify-between items-center mb-10 px-1">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-600 font-black mb-0.5">Dashboard</p>
+          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-400 font-black mb-0.5">Dashboard</p>
           <h1 className="text-2xl font-black italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Expensio.</h1>
         </div>
         <Link to="/profile" className="active:scale-90 transition-transform">
@@ -195,11 +195,11 @@ export default function Home({ expenses = [], onDelete, username }) {
       {/* Bento Grid */}
       <div className="grid grid-cols-2 gap-4 mb-10">
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm">
-          <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold">Today</p>
+          <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Today</p>
           <p className="text-2xl font-black text-emerald-400">₹{todayTotal.toLocaleString("en-IN")}</p>
         </div>
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm">
-          <p className="text-[9px] uppercase tracking-widest text-gray-600 font-bold">Logs</p>
+          <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Logs</p>
           <p className="text-2xl font-black text-white">{expenses.length}</p>
         </div>
 
@@ -219,7 +219,7 @@ export default function Home({ expenses = [], onDelete, username }) {
                     {categoryData.icon}
                   </div>
                   <div>
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-gray-600 font-black flex items-center gap-1">
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-black flex items-center gap-1">
                       <Award size={10} className="text-indigo-500" /> Top Spending
                     </p>
                     <p className="font-bold text-white tracking-tight truncate max-w-[140px]">
@@ -279,7 +279,7 @@ export default function Home({ expenses = [], onDelete, username }) {
                     </div>
                     <div>
                       <p className="font-bold text-sm tracking-tight">{item.note || normalized}</p>
-                      <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest mt-1 italic">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 italic">
                         {new Date(item.created_at || item.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                       </p>
                     </div>

@@ -128,7 +128,7 @@ export default function History({ expenses = [], onDelete }) {
       {/* Header */}
       <header className="flex justify-between items-center mb-8 px-1">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-600 font-black mb-0.5">Timeline</p>
+          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-400 font-black mb-0.5">Timeline</p>
           <h1 className="text-3xl font-black italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Activity.</h1>
         </div>
         <div className="bg-[#0c0c0c] border border-white/5 px-4 py-2.5 rounded-2xl text-right shadow-xl">
@@ -145,7 +145,7 @@ export default function History({ expenses = [], onDelete }) {
           </button>
           <div className="flex flex-col items-center justify-center pointer-events-none">
             <h3 className="text-xs font-black tracking-[0.2em] uppercase text-white">{months[selectedMonth]}</h3>
-            <p className="text-[9px] font-bold text-gray-600 tracking-widest">{selectedYear}</p>
+            <p className="text-[9px] font-bold text-gray-400 tracking-widest">{selectedYear}</p>
           </div>
           <button onClick={() => handleMonthChange("next")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
             <ChevronRight size={18} />
@@ -190,7 +190,7 @@ export default function History({ expenses = [], onDelete }) {
                <div className="w-16 h-16 bg-[#0c0c0c] rounded-[2rem] flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-xl">
                   <Calendar size={24} className="text-gray-700" />
                </div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">No logs for {activeCategory}</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">No logs for {activeCategory}</p>
             </motion.div>
           ) : (
             <motion.div key="list" className="space-y-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -211,7 +211,7 @@ export default function History({ expenses = [], onDelete }) {
                         </span>
                       </div>
                       <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                      <span className="text-[10px] font-bold text-gray-600 font-mono tracking-tighter">
+                      <span className="text-[10px] font-bold text-gray-400 font-mono tracking-tighter">
                         ₹{grouped[date].total.toLocaleString('en-IN')}
                       </span>
                     </div>
@@ -263,7 +263,7 @@ export default function History({ expenses = [], onDelete }) {
                                     <p className="font-bold text-sm tracking-tight leading-tight">
                                       {item.note || item.normalized}
                                     </p>
-                                    <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
+                                    <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
                                       <Clock size={8} /> 
                                       {item.localDate.toLocaleTimeString("en-IN", {
                                         hour: "2-digit",

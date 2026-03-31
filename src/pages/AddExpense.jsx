@@ -156,7 +156,7 @@ export default function AddExpense({ addExpense }) {
         </p>
 
         <div className="relative flex justify-center items-center w-full max-w-[260px] border-b border-white/10 pb-2 focus-within:border-indigo-500 transition-colors group">
-          <span className={`absolute left-3 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-600'}`}>
+          <span className={`absolute left-3 text-4xl font-light transition-colors duration-300 ${amount ? 'text-indigo-400' : 'text-gray-400'}`}>
             ₹
           </span>
 
@@ -191,7 +191,7 @@ export default function AddExpense({ addExpense }) {
               placeholder="What for? (e.g. Medicine, Gift)"
               value={customNote}
               onChange={(e) => setCustomNote(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-600 shadow-inner"
+              className="w-full p-4 rounded-2xl bg-white/[0.05] border border-indigo-500/30 outline-none focus:border-indigo-500 transition-all text-indigo-100 placeholder:text-gray-400 shadow-inner"
             />
           </motion.div>
         )}
@@ -229,7 +229,7 @@ export default function AddExpense({ addExpense }) {
         className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all duration-300 ${
           canSubmit
             ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 text-white shadow-[0_10px_30px_rgba(99,102,241,0.2)]"
-            : "bg-white/5 text-gray-600 cursor-not-allowed border border-white/5"
+            : "bg-white/5 text-gray-400 cursor-not-allowed border border-white/5"
         }`}
       >
         {loading ? (
