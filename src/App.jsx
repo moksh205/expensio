@@ -1,15 +1,24 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useState, useEffect } from "react";
-import Home from "./pages/Home";
-import AddExpense from "./pages/AddExpense";
-import History from "./pages/History";
-import BottomNav from "./components/BottomNav";
-import Profile from "./pages/Profile";
-import LoginSignup from "./pages/LoginSignup";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
+import BottomNav from "./components/BottomNav";
 
 // 🔥 Supabase
 import { supabase } from "./supabase";
+
+// ✅ PERFORMANCE: Lazy load page components to enable Route-Level Code Splitting
+const Home = lazy(() => import("./pages/Home"));
+const AddExpense = lazy(() => import("./pages/AddExpense"));
+const History = lazy(() => import("./pages/History"));
+const Profile = lazy(() => import("./pages/Profile"));
+const LoginSignup = lazy(() => import("./pages/LoginSignup"));
+
+// 🔹 Sleek loader that matches your dark theme while chunks download
+const PageLoader = () => (
+  <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center pb-20">
+    <div className="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+  </div>
+);
 
 function App() {
   const [expenses, setExpenses] = useState([]);
@@ -139,48 +148,53 @@ function App() {
     <HelmetProvider>
       <BrowserRouter>
         <div className="bg-[#0f0f0f] text-white min-h-screen pb-20">
-          {/* ✅ FIX: Routes now ONLY contains Route components */}
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <Home
-                  expenses={expenses}
-                  onDelete={deleteExpense}
-                  username={user?.email || "Guest"}
-                />
-              }
-            />
+          
+          {/* ✅ PERFORMANCE: Suspense wrapper catches lazy-loaded components */}
+          <Suspense fallback={<PageLoader />}>
+            {/* ✅ FIX: Routes now ONLY contains Route components */}
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Home
+                    expenses={expenses}
+                    onDelete={deleteExpense}
+                    username={user?.email || "Guest"}
+                  />
+                }
+              />
 
-            <Route
-              path="/add"
-              element={<AddExpense addExpense={addExpense} />}
-            />
+              <Route
+                path="/add"
+                element={<AddExpense addExpense={addExpense} />}
+              />
 
-            <Route
-              path="/history"
-              element={<History expenses={expenses} onDelete={deleteExpense}/>}
-            />
+              <Route
+                path="/history"
+                element={<History expenses={expenses} onDelete={deleteExpense}/>}
+              />
 
-            <Route
-              path="/profile"
-              element={
-                <Profile
-                  expenses={expenses}
-                  resetData={resetData}
-                  user={user}
-                  onLogin={handleLogin}
-                  onLogout={handleLogout}
-                />
-              }
-            />
+              <Route
+                path="/profile"
+                element={
+                  <Profile
+                    expenses={expenses}
+                    resetData={resetData}
+                    user={user}
+                    onLogin={handleLogin}
+                    onLogout={handleLogout}
+                  />
+                }
+              />
 
-            <Route
-              path="/login"
-              element={<LoginSignup onLogin={handleLogin} />}
-            />
-          </Routes>
+              <Route
+                path="/login"
+                element={<LoginSignup onLogin={handleLogin} />}
+              />
+            </Routes>
+          </Suspense>
 
+          {/* Persistent UI outside Suspense ensures bottom nav never flashes */}
           <BottomNav />
         </div>
       </BrowserRouter>
