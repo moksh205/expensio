@@ -6,6 +6,7 @@ import {
   CheckCircle2, AlertTriangle, Info, Download
 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
+import SEO from '../components/SEO';
 
 export default function Profile({ expenses = [], resetData, user, onLogout }) {
   const [name, setName] = useState("");
@@ -146,7 +147,10 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
-      
+      <SEO 
+        title="Profile - Expensio" 
+        description="Manage your profile, view stats, and export your expense data." 
+      />
       {/* 🔹 TOAST SYSTEM */}
       <AnimatePresence>
         {toast.show && (

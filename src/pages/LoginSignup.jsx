@@ -5,7 +5,7 @@ import {
   ArrowRight, Sparkles, Lock, AlertCircle, 
   Mail, Loader2, Eye, EyeOff 
 } from "lucide-react";
-
+import SEO from '../components/SEO';
 import { supabase } from "../supabase";
 
 export default function LoginSignup({ onLogin }) {
@@ -87,7 +87,11 @@ export default function LoginSignup({ onLogin }) {
 
   return (
     <div className="h-screen bg-[#050505] text-white px-8 flex flex-col justify-center max-w-md mx-auto">
-
+ <SEO 
+        title="Login / Signup - Expensio" 
+        description="Sign in to securely sync your expenses across all your devices." 
+      /> 
+      
       {/* Toast */}
       <div className="fixed top-10 left-0 right-0 flex justify-center z-50">
         <AnimatePresence>

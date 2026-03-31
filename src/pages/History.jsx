@@ -6,6 +6,7 @@ import {
   ChevronRight, ChevronLeft, Trash2, Clock,
   ShoppingBag, Fuel, Pill, Ticket, Filter
 } from "lucide-react";
+import SEO from '../components/SEO';
 
 export default function History({ expenses = [], onDelete }) {
   const [activeCategory, setActiveCategory] = useState("All");
@@ -118,7 +119,10 @@ export default function History({ expenses = [], onDelete }) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-5 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-x-hidden">
-      
+      <SEO 
+        title="History - Expensio" 
+        description="View and analyze your expense history with smart filters." 
+      />
       <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
 
       {/* Header */}

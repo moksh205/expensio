@@ -6,6 +6,7 @@ import {
   Utensils, Bike, ShoppingCart, Receipt, 
   Plus, Coffee, Package, MoreHorizontal, Trash2, Award
 } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const AnimatedNumber = ({ value }) => {
   const count = useMotionValue(0);
@@ -147,6 +148,10 @@ export default function Home({ expenses = [], onDelete, username }) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-5 py-8 pb-28 font-sans max-w-md mx-auto relative overflow-hidden">
+      <SEO 
+        title="Expensio – Smart Expense Tracker" 
+        description="Track your daily expenses, manage money, and gain insights with Expensio." 
+      />
       <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
 
       {/* Header */}

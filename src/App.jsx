@@ -6,6 +6,7 @@ import History from "./pages/History";
 import BottomNav from "./components/BottomNav";
 import Profile from "./pages/Profile";
 import LoginSignup from "./pages/LoginSignup";
+import { HelmetProvider } from 'react-helmet-async';
 
 // 🔥 Supabase
 import { supabase } from "./supabase";
@@ -110,22 +111,23 @@ function App() {
 
   // 🔥 login + sync
   const handleLogin = async (supabaseUser) => {
-  setUser(supabaseUser);
+    setUser(supabaseUser);
 
-  // 🔥 sync guest data
-  await syncGuestData(supabaseUser);
+    // 🔥 sync guest data
+    await syncGuestData(supabaseUser);
 
-  // 🔥 fetch fresh data from DB
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("user_id", supabaseUser.id)
-    .order("created_at", { ascending: false });
+    // 🔥 fetch fresh data from DB
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .eq("user_id", supabaseUser.id)
+      .order("created_at", { ascending: false });
 
-  if (!error) {
-    setExpenses(data);
-  }
-};
+    if (!error) {
+      setExpenses(data);
+    }
+  };
+
   // 🔥 logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -133,53 +135,56 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <div className="bg-[#0f0f0f] text-white min-h-screen pb-20">
+    // ✅ FIX: HelmetProvider wraps the entire app architecture
+    <HelmetProvider>
+      <BrowserRouter>
+        <div className="bg-[#0f0f0f] text-white min-h-screen pb-20">
+          {/* ✅ FIX: Routes now ONLY contains Route components */}
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <Home
+                  expenses={expenses}
+                  onDelete={deleteExpense}
+                  username={user?.email || "Guest"}
+                />
+              }
+            />
 
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Home
-                expenses={expenses}
-                onDelete={deleteExpense}
-                username={user?.email || "Guest"}
-              />
-            }
-          />
+            <Route
+              path="/add"
+              element={<AddExpense addExpense={addExpense} />}
+            />
 
-          <Route
-            path="/add"
-            element={<AddExpense addExpense={addExpense} />}
-          />
+            <Route
+              path="/history"
+              element={<History expenses={expenses} onDelete={deleteExpense}/>}
+            />
 
-          <Route
-            path="/history"
-            element={<History expenses={expenses}  onDelete={deleteExpense}/>}
-          />
+            <Route
+              path="/profile"
+              element={
+                <Profile
+                  expenses={expenses}
+                  resetData={resetData}
+                  user={user}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                />
+              }
+            />
 
-          <Route
-            path="/profile"
-            element={
-              <Profile
-                expenses={expenses}
-                resetData={resetData}
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-            }
-          />
+            <Route
+              path="/login"
+              element={<LoginSignup onLogin={handleLogin} />}
+            />
+          </Routes>
 
-          <Route
-            path="/login"
-            element={<LoginSignup onLogin={handleLogin} />}
-          />
-        </Routes>
-
-        <BottomNav />
-      </div>
-    </BrowserRouter>
+          <BottomNav />
+        </div>
+      </BrowserRouter>
+    </HelmetProvider>
   );
 }
 

@@ -5,7 +5,7 @@ import {
   Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2,
   ShoppingBag, Fuel, Pill, Ticket 
 } from "lucide-react";
-
+import SEO from '../components/SEO';
 import { supabase } from "../supabase";
 
 export default function AddExpense({ addExpense }) {
@@ -121,7 +121,10 @@ export default function AddExpense({ addExpense }) {
 
   return (
     <div className="relative p-6 pb-32 max-w-md mx-auto text-white min-h-screen bg-[#050505] overflow-y-auto font-sans">
-      
+      <SEO 
+        title="Add Expense - Expensio" 
+        description="Quickly add a new expense and keep your budget on track." 
+      />
       <AnimatePresence>
         {showToast && (
           <motion.div
