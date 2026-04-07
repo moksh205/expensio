@@ -4,12 +4,14 @@ import {
   Utensils, Bike, ShoppingCart, Receipt, 
   Plus, Coffee, Package, MoreHorizontal, Calendar, 
   ChevronRight, ChevronLeft, Trash2, Clock,
-  ShoppingBag, Fuel, Pill, Ticket, Filter
+  ShoppingBag, Fuel, Pill, Ticket, Filter,
+  CreditCard, Wallet
 } from "lucide-react";
 import SEO from '../components/SEO';
 
 export default function History({ expenses = [], onDelete }) {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [paymentFilter, setPaymentFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
 
   const now = new Date();
@@ -67,9 +69,7 @@ export default function History({ expenses = [], onDelete }) {
       const d = new Date(raw);
       if (isNaN(d.getTime())) return acc;
 
-      // 🔥 Applied your pragmatic fix: Explicitly add 5.5 hours to correct the DB offset
       const localDate = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
-
       const normalized = normalizeCategory(exp);
 
       acc.push({ ...exp, localDate, normalized });
@@ -79,13 +79,15 @@ export default function History({ expenses = [], onDelete }) {
 
   const filteredExpenses = useMemo(() => {
     return processedExpenses.filter(exp => {
-      return (
-        exp.localDate.getMonth() === selectedMonth &&
-        exp.localDate.getFullYear() === selectedYear &&
-        (activeCategory === "All" || exp.normalized === activeCategory)
-      );
+      const matchesMonth = exp.localDate.getMonth() === selectedMonth && exp.localDate.getFullYear() === selectedYear;
+      const matchesCategory = activeCategory === "All" || exp.normalized === activeCategory;
+      
+      const expPaymentMethod = exp.payment_method || "Online";
+      const matchesPayment = paymentFilter === "All" || expPaymentMethod === paymentFilter;
+
+      return matchesMonth && matchesCategory && matchesPayment;
     });
-  }, [processedExpenses, selectedMonth, selectedYear, activeCategory]);
+  }, [processedExpenses, selectedMonth, selectedYear, activeCategory, paymentFilter]);
 
   const grouped = useMemo(() => {
     return filteredExpenses.reduce((acc, exp) => {
@@ -137,60 +139,99 @@ export default function History({ expenses = [], onDelete }) {
         </div>
       </header>
 
-      {/* Month Selector */}
-      <section className="mb-6">
-        <div className="flex items-center justify-between bg-[#0c0c0c] border border-white/5 p-1.5 rounded-full mx-auto shadow-lg max-w-[260px]">
-          <button onClick={() => handleMonthChange("prev")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
-            <ChevronLeft size={18} />
-          </button>
-          <div className="flex flex-col items-center justify-center pointer-events-none">
-            <h3 className="text-xs font-black tracking-[0.2em] uppercase text-white">{months[selectedMonth]}</h3>
-            <p className="text-[9px] font-bold text-gray-400 tracking-widest">{selectedYear}</p>
+      {/* --- UNIFIED CONTROL CENTER --- */}
+      <div className="mb-10 space-y-5">
+        
+        {/* Month Selector */}
+        <section>
+          <div className="flex items-center justify-between bg-[#0c0c0c] border border-white/5 p-1.5 rounded-full mx-auto shadow-lg max-w-[260px]">
+            <button onClick={() => handleMonthChange("prev")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex flex-col items-center justify-center pointer-events-none">
+              <h3 className="text-xs font-black tracking-[0.2em] uppercase text-white">{months[selectedMonth]}</h3>
+              <p className="text-[9px] font-bold text-gray-400 tracking-widest">{selectedYear}</p>
+            </div>
+            <button onClick={() => handleMonthChange("next")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
+              <ChevronRight size={18} />
+            </button>
           </div>
-          <button onClick={() => handleMonthChange("next")} className="p-3 text-gray-500 hover:text-white hover:bg-white/5 rounded-full transition-all active:scale-90">
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      </section>
+        </section>
 
-      {/* Category Filters */}
-      <section className="mb-8">
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5 pb-4">
-          {categories.map(cat => {
-            const isAll = cat === "All";
-            const icon = isAll ? <Filter size={14} /> : categoryIcons[cat].icon;
-            const isActive = activeCategory === cat;
+        {/* PREMIUM SLIDING PAYMENT FILTER */}
+        <section className="px-1">
+          <div className="relative flex p-1 bg-[#0c0c0c] border border-white/5 rounded-2xl shadow-inner">
+            {["All", "Online", "Cash"].map(method => {
+              const isActive = paymentFilter === method;
+              return (
+                <button
+                  key={method}
+                  onClick={() => {
+                    setPaymentFilter(method);
+                    setSelectedId(null);
+                  }}
+                  className={`relative flex-1 flex justify-center items-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-[0.2em] z-10 transition-colors duration-300 ${
+                    isActive ? "text-black" : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activePaymentTab"
+                      className="absolute inset-0 bg-white rounded-xl -z-10 shadow-[0_0_15px_rgba(255,255,255,0.15)]"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  {method === "Online" && <CreditCard size={12} className={isActive ? "text-black" : "text-gray-600"} />}
+                  {method === "Cash" && <Wallet size={12} className={isActive ? "text-black" : "text-gray-600"} />}
+                  {method}
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-            return (
-              <button
-                key={cat}
-                onClick={() => {
-                  setActiveCategory(cat);
-                  setSelectedId(null); 
-                }}
-                className={`flex items-center gap-2 px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border shadow-sm ${
-                  isActive 
-                  ? "bg-white text-black border-white shadow-white/10 scale-95" 
-                  : "bg-[#0c0c0c] border-white/5 text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <span className={isActive ? "text-black" : "text-gray-500"}>{icon}</span>
-                {cat}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+        {/* Category Filters (Sleek Chips) */}
+        <section>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 pb-2">
+            {categories.map(cat => {
+              const isAll = cat === "All";
+              const icon = isAll ? <Filter size={14} /> : categoryIcons[cat].icon;
+              const isActive = activeCategory === cat;
+
+              return (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    setActiveCategory(cat);
+                    setSelectedId(null); 
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border shadow-sm ${
+                    isActive 
+                    ? "bg-white/10 text-white border-white/20 shadow-white/5" 
+                    : "bg-[#0c0c0c] border-white/5 text-gray-500 hover:bg-white/5 hover:text-gray-300"
+                  }`}
+                >
+                  <span className={isActive ? "text-white" : "text-gray-600"}>{icon}</span>
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+      {/* --- END CONTROL CENTER --- */}
 
       {/* Transactions List */}
       <div className="w-full">
         <AnimatePresence mode="popLayout">
           {dates.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20">
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-10">
                <div className="w-16 h-16 bg-[#0c0c0c] rounded-[2rem] flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-xl">
                   <Calendar size={24} className="text-gray-700" />
                </div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">No logs for {activeCategory}</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                 No logs found
+               </p>
             </motion.div>
           ) : (
             <motion.div key="list" className="space-y-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -232,7 +273,7 @@ export default function History({ expenses = [], onDelete }) {
                               key={stableId}
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                              exit={{ opacity: 0, scale: 0.85 }} 
                               className="relative overflow-hidden rounded-[1.8rem]"
                             >
                               <button
@@ -263,13 +304,19 @@ export default function History({ expenses = [], onDelete }) {
                                     <p className="font-bold text-sm tracking-tight leading-tight">
                                       {item.note || item.normalized}
                                     </p>
+                                    
                                     <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest mt-1 flex items-center gap-1">
                                       <Clock size={8} /> 
                                       {item.localDate.toLocaleTimeString("en-IN", {
                                         hour: "2-digit",
                                         minute: "2-digit"
                                       })}
+                                      <span className="mx-1">•</span>
+                                      <span className="text-indigo-400">
+                                        {item.payment_method || "Online"}
+                                      </span>
                                     </p>
+
                                   </div>
                                 </div>
                                 <div className={`text-right transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
@@ -290,6 +337,11 @@ export default function History({ expenses = [], onDelete }) {
       </div>
 
       <style>{`
+        /* 🔥 THE FIX: Strictly forces the browser to hide horizontal scrollbars globally */
+        html, body { 
+          overflow-x: hidden; 
+        }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>

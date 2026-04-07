@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Utensils, Bike, ShoppingCart, Receipt, 
   Plus, Coffee, Package, MoreHorizontal, CheckCircle2, Loader2,
-  ShoppingBag, Fuel, Pill, Ticket 
+  ShoppingBag, Fuel, Pill, Ticket, Wallet, CreditCard 
 } from "lucide-react";
 import SEO from '../components/SEO';
 import { supabase } from "../supabase";
@@ -12,11 +12,17 @@ export default function AddExpense({ addExpense }) {
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [customNote, setCustomNote] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Online"); 
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // 🔥 FIX 3: Added state for Toast Timer
   const [toastTimer, setToastTimer] = useState(null);
+
+  // 🔥 Added Payment Options with matching Category styles
+  const paymentOptions = [
+    { name: "Cash", icon: <Wallet size={18} />, color: "bg-emerald-500/20 text-emerald-400" },
+    { name: "Online", icon: <CreditCard size={18} />, color: "bg-indigo-500/20 text-indigo-400" }
+  ];
 
   const categories = [
     { name: "Food", icon: <Utensils size={18} />, color: "bg-orange-500/20 text-orange-400" },
@@ -35,7 +41,6 @@ export default function AddExpense({ addExpense }) {
 
   const numAmount = parseFloat(amount);
   
-  // 🔥 FIX 1: Prevent "." from breaking the UI state
   const isValidAmount =
     !isNaN(numAmount) &&
     numAmount > 0 &&
@@ -56,7 +61,6 @@ export default function AddExpense({ addExpense }) {
 
     setLoading(true);
 
-    // 🔥 FIX 2: Preserves custom note if user typed one, fallback to category otherwise
     const finalNote =
       selectedCategory === "Other"
         ? customNote.trim()
@@ -68,6 +72,7 @@ export default function AddExpense({ addExpense }) {
       category: selectedCategory,
       note: finalNote,
       created_at: new Date().toISOString(),
+      payment_method: paymentMethod, 
     };
 
     try {
@@ -94,6 +99,7 @@ export default function AddExpense({ addExpense }) {
               category: expenseData.category,
               note: expenseData.note,
               created_at: expenseData.created_at,
+              payment_method: expenseData.payment_method, 
             },
           ])
           .select();
@@ -106,8 +112,8 @@ export default function AddExpense({ addExpense }) {
       setAmount("");
       setSelectedCategory("");
       setCustomNote("");
+      setPaymentMethod("Online");
 
-      // 🔥 FIX 3: Clear existing timeout to prevent race conditions
       if (toastTimer) clearTimeout(toastTimer);
       const timer = setTimeout(() => setShowToast(false), 3000);
       setToastTimer(timer);
@@ -176,6 +182,33 @@ export default function AddExpense({ addExpense }) {
             }`}
           />
         </div>
+      </div>
+
+      {/* 🔥 THE FIX: Payment UI exactly matches Category styling */}
+      <div className="flex gap-3 mb-6">
+        {paymentOptions.map((option) => {
+          const isActive = paymentMethod === option.name;
+
+          return (
+            <button
+              key={option.name}
+              onClick={() => setPaymentMethod(option.name)}
+              className={`relative flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                isActive
+                  ? `${option.color} border-white/20 shadow-[0_0_25px_-5px_currentColor] scale-[0.98]`
+                  : "bg-white/[0.02] border-transparent text-gray-500 hover:bg-white/[0.05]"
+              }`}
+            >
+              {isActive && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
+              <div className={`relative z-10 p-2 rounded-lg transition-transform duration-300 ${option.color} ${isActive ? "scale-110 brightness-125" : ""}`}>
+                {option.icon}
+              </div>
+              <span className={`relative z-10 text-sm font-bold tracking-wide ${isActive ? "text-white" : "text-gray-500"}`}>
+                {option.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <AnimatePresence mode="wait">

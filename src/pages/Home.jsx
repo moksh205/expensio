@@ -28,6 +28,9 @@ const AnimatedNumber = ({ value }) => {
 export default function Home({ expenses = [], onDelete, username }) {
   const [selectedId, setSelectedId] = useState(null);
   const [showTotal, setShowTotal] = useState(false);
+  
+  // ✅ ADDED: State to toggle Cash/Online boxes
+  const [isPaymentMonthly, setIsPaymentMonthly] = useState(false);
 
   const today = new Date();
   const currentMonth = today.getMonth();
@@ -70,18 +73,15 @@ export default function Home({ expenses = [], onDelete, username }) {
     return isToday ? sum + Number(e.amount) : sum;
   }, 0);
 
-  // 🔥 PERFECT TOP SPENDING (REAL + CLEAN GROUPING)
   const noteTotals = expenses.reduce((acc, exp) => {
     const d = new Date(exp.created_at || exp.date);
 
     if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
       let raw = (exp.note || "").toString().trim().toLowerCase();
 
-      // ❌ Ignore ONLY exact generic entries
       const ignoreWords = ["food", "ride", "zomato", "blinkit", "shopping", "bills", "juice", "other"];
       if (!raw || ignoreWords.includes(raw)) return acc;
 
-      // ✅ SMART GROUPING
       let key = raw;
       if (raw.includes("electric") || raw.includes("light bill")) key = "electricity";
       else if (raw.includes("cloth")) key = "clothes";
@@ -96,12 +96,10 @@ export default function Home({ expenses = [], onDelete, username }) {
     return acc;
   }, {});
 
-  // ✅ Get top REAL item
   let topItemEntry = Object.entries(noteTotals)
     .filter(([_, val]) => val > 0)
     .sort((a, b) => b[1] - a[1])[0] || null;
 
-  // 🔥 SANITY CHECK FALLBACK
   const categoryTotals = expenses.reduce((acc, exp) => {
     const d = new Date(exp.created_at || exp.date);
     if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
@@ -114,16 +112,13 @@ export default function Home({ expenses = [], onDelete, username }) {
   const topCategoryEntry = Object.entries(categoryTotals)
     .sort((a, b) => b[1] - a[1])[0] || null;
 
-  // 🔥 THE FIX: Never allow the generic "Other" bucket to overwrite a typed note!
   const isCategoryBigger = topCategoryEntry && topItemEntry && topCategoryEntry[1] > topItemEntry[1];
   const isNotOtherBucket = topCategoryEntry && topCategoryEntry[0] !== "Other";
 
-  // Override only if we have NO items at all, OR if a valid category (like Food) beats our top item
   if (!topItemEntry || (isCategoryBigger && isNotOtherBucket)) {
     topItemEntry = topCategoryEntry;
   }
 
-  // Percentage & Name Formatting
   let topItemPercentage = 0;
   let displayPercentage = "0%";
 
@@ -145,6 +140,28 @@ export default function Home({ expenses = [], onDelete, username }) {
   const recentTransactions = [...expenses]
     .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
     .slice(0, 5);
+
+  // ✅ ADDED: Calculate BOTH Monthly and All-Time Payment splits
+  const paymentStats = expenses.reduce((acc, exp) => {
+    const method = exp.payment_method || "Online";
+    const amt = Number(exp.amount) || 0;
+    const d = new Date(exp.created_at || exp.date);
+    const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+
+    if (method === "Cash") {
+      acc.allCash += amt;
+      if (isCurrentMonth) acc.moCash += amt;
+    } else {
+      acc.allOnline += amt;
+      if (isCurrentMonth) acc.moOnline += amt;
+    }
+
+    return acc;
+  }, { allCash: 0, moCash: 0, allOnline: 0, moOnline: 0 });
+
+  // Determine what to display based on state
+  const displayCash = isPaymentMonthly ? paymentStats.moCash : paymentStats.allCash;
+  const displayOnline = isPaymentMonthly ? paymentStats.moOnline : paymentStats.allOnline;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white px-5 py-8 pb-28 font-sans max-w-md mx-auto relative overflow-hidden">
@@ -194,16 +211,52 @@ export default function Home({ expenses = [], onDelete, username }) {
 
       {/* Bento Grid */}
       <div className="grid grid-cols-2 gap-4 mb-10">
+        
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm">
           <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Today</p>
-          <p className="text-2xl font-black text-emerald-400">₹{todayTotal.toLocaleString("en-IN")}</p>
+          <p className="text-2xl font-black text-emerald-400 truncate">₹{todayTotal.toLocaleString("en-IN")}</p>
         </div>
+        
         <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm">
           <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Logs</p>
-          <p className="text-2xl font-black text-white">{expenses.length}</p>
+          <p className="text-2xl font-black text-white truncate">{expenses.length}</p>
         </div>
 
-        {/* 🔥 Top Spending Card */}
+        {/* 🔥 CLICKABLE Payment Split: Cash */}
+        <motion.div 
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsPaymentMonthly(!isPaymentMonthly)}
+          className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm cursor-pointer select-none"
+        >
+          <div className="flex justify-between items-center">
+            <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Cash</p>
+            <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-lg transition-colors duration-300 ${isPaymentMonthly ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-gray-500'}`}>
+              {isPaymentMonthly ? "Month" : "All Time"}
+            </span>
+          </div>
+          <p className="text-2xl font-black text-emerald-400 truncate">
+            ₹<AnimatedNumber value={displayCash} />
+          </p>
+        </motion.div>
+
+        {/* 🔥 CLICKABLE Payment Split: Online */}
+        <motion.div 
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsPaymentMonthly(!isPaymentMonthly)}
+          className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm cursor-pointer select-none"
+        >
+          <div className="flex justify-between items-center">
+            <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Online</p>
+            <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-lg transition-colors duration-300 ${isPaymentMonthly ? 'bg-indigo-500/10 text-indigo-400' : 'bg-white/5 text-gray-500'}`}>
+              {isPaymentMonthly ? "Month" : "All Time"}
+            </span>
+          </div>
+          <p className="text-2xl font-black text-indigo-400 truncate">
+            ₹<AnimatedNumber value={displayOnline} />
+          </p>
+        </motion.div>
+
+        {/* Top Spending Card */}
         {topItemEntry && (() => {
           const normalized = normalizeCategory({ 
             category: topItemEntry[0], 
@@ -212,7 +265,7 @@ export default function Home({ expenses = [], onDelete, username }) {
           const categoryData = categoryIcons[normalized] || categoryIcons.Other;
 
           return (
-            <div className="col-span-2 bg-gradient-to-r from-white/[0.02] to-white/[0.05] border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between shadow-xl">
+            <div className="col-span-2 bg-gradient-to-r from-white/[0.02] to-white/[0.05] border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between shadow-xl mt-2">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
                   <div className={`p-3 rounded-2xl ${categoryData.color}`}>
@@ -228,7 +281,7 @@ export default function Home({ expenses = [], onDelete, username }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-black text-white text-xl tracking-tight">₹{topItemEntry[1].toLocaleString("en-IN")}</p>
+                  <p className="font-black text-white text-xl tracking-tight truncate">₹{topItemEntry[1].toLocaleString("en-IN")}</p>
                   <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">{displayPercentage} Contribution</p>
                 </div>
               </div>
@@ -279,8 +332,12 @@ export default function Home({ expenses = [], onDelete, username }) {
                     </div>
                     <div>
                       <p className="font-bold text-sm tracking-tight">{item.note || normalized}</p>
-                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 italic">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 italic flex items-center gap-1">
                         {new Date(item.created_at || item.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        <span>•</span>
+                        <span className={item.payment_method === "Cash" ? "text-emerald-400" : "text-indigo-400"}>
+                          {item.payment_method || "Online"}
+                        </span>
                       </p>
                     </div>
                   </div>
