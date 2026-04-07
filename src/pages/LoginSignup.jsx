@@ -15,6 +15,9 @@ export default function LoginSignup({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // ✅ ADDED: State to manage the Forgot Password button loading/disabled state
+  const [resetLoading, setResetLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -153,7 +156,7 @@ export default function LoginSignup({ onLogin }) {
             </button>
           </div>
 
-          {/* 🔥 Forgot Password Button (Only visible on Login) */}
+          {/* 🔥 Forgot Password Button */}
           {!isSignup && (
             <button
               onClick={async () => {
@@ -162,8 +165,11 @@ export default function LoginSignup({ onLogin }) {
                   return;
                 }
 
+                setResetLoading(true); // Disable the button
+
+                // Uses window.location.origin so it works on localhost AND your live domain!
                 const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                  redirectTo: "https://expensio.dev/update-password",
+                  redirectTo: `${window.location.origin}/update-password`,
                 });
 
                 if (error) {
@@ -171,10 +177,15 @@ export default function LoginSignup({ onLogin }) {
                 } else {
                   showToast("Reset link sent to email");
                 }
+
+                setResetLoading(false); // Re-enable the button
               }}
-              className="text-xs text-indigo-400 text-right w-full mt-1"
+              disabled={resetLoading} // Tie HTML disabled attribute to state
+              className={`text-xs text-right w-full mt-2 pr-1 font-medium transition-colors ${
+                resetLoading ? "text-gray-500 cursor-not-allowed" : "text-indigo-400 hover:text-indigo-300"
+              }`}
             >
-              Forgot Password?
+              {resetLoading ? "Sending..." : "Forgot Password?"}
             </button>
           )}
         </div>
