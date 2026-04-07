@@ -12,6 +12,7 @@ const AddExpense = lazy(() => import("./pages/AddExpense"));
 const History = lazy(() => import("./pages/History"));
 const Profile = lazy(() => import("./pages/Profile"));
 const LoginSignup = lazy(() => import("./pages/LoginSignup"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 
 // 🔹 Sleek loader that matches your dark theme while chunks download
 const PageLoader = () => (
@@ -190,6 +191,10 @@ function App() {
               <Route
                 path="/login"
                 element={<LoginSignup onLogin={handleLogin} />}
+              />
+              <Route
+                path="/update-password"
+                element={<UpdatePassword />}
               />
             </Routes>
           </Suspense>

@@ -87,7 +87,7 @@ export default function LoginSignup({ onLogin }) {
 
   return (
     <div className="h-screen bg-[#050505] text-white px-8 flex flex-col justify-center max-w-md mx-auto">
- <SEO 
+      <SEO 
         title="Login / Signup - Expensio" 
         description="Sign in to securely sync your expenses across all your devices." 
       /> 
@@ -133,23 +133,50 @@ export default function LoginSignup({ onLogin }) {
           />
         </div>
 
-        {/* Password */}
-        <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-4 pl-12 pr-12 rounded-xl bg-white/10 outline-none"
-          />
+        {/* Password Group */}
+        <div>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-4 pl-12 pr-12 rounded-xl bg-white/10 outline-none"
+            />
 
-          <button
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-          >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          {/* 🔥 Forgot Password Button (Only visible on Login) */}
+          {!isSignup && (
+            <button
+              onClick={async () => {
+                if (!email) {
+                  showToast("Enter email first");
+                  return;
+                }
+
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: "https://expensio.dev/update-password",
+                });
+
+                if (error) {
+                  showToast("Error sending reset email");
+                } else {
+                  showToast("Reset link sent to email");
+                }
+              }}
+              className="text-xs text-indigo-400 text-right w-full mt-1"
+            >
+              Forgot Password?
+            </button>
+          )}
         </div>
 
         {/* Button */}
