@@ -181,8 +181,9 @@ export default function History({ expenses = [], onDelete }) {
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
-                  {method === "Online" && <CreditCard size={12} className={isActive ? "text-black" : "text-gray-600"} />}
-                  {method === "Cash" && <Wallet size={12} className={isActive ? "text-black" : "text-gray-600"} />}
+                  {/* 🔥 Updated the filter icons to perfectly match your color scheme */}
+                  {method === "Online" && <CreditCard size={12} className={isActive ? "text-black" : "text-indigo-500"} />}
+                  {method === "Cash" && <Wallet size={12} className={isActive ? "text-black" : "text-emerald-500"} />}
                   {method}
                 </button>
               );
@@ -312,7 +313,8 @@ export default function History({ expenses = [], onDelete }) {
                                         minute: "2-digit"
                                       })}
                                       <span className="mx-1">•</span>
-                                      <span className="text-indigo-400">
+                                      {/* 🔥 The Fix: The exact Emerald and Indigo match */}
+                                      <span className={item.payment_method === "Cash" ? "text-emerald-400" : "text-indigo-400"}>
                                         {item.payment_method || "Online"}
                                       </span>
                                     </p>
