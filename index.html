@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="google-adsense-account" content="ca-pub-2728019378057562">
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#050505" />
@@ -27,7 +27,23 @@
   <meta name="twitter:image" content="https://expensio.dev/preview.png" />
 
   <!-- Favicon -->
-  <link rel="icon" href="/public/logo.png" />
+  <link rel="icon" href="/logo.png" />
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Theme: apply saved/system theme before first paint (no flash) -->
+  <script>
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem("theme"); } catch (e) {}
+      var dark = saved ? saved === "dark" : true; // Expensio is black by default
+      document.documentElement.classList.toggle("dark", dark);
+      document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#000000" : "#f7f6f2");
+    })();
+  </script>
 </head>
   <body>
     <div id="root"></div>

@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, Save, Trash2, Wallet, Database, 
-  ShieldAlert, ChevronRight, LogOut, LogIn, CloudSync,
-  CheckCircle2, AlertTriangle, Info, Download
+import {
+  Save, Trash2, LogOut, LogIn, CloudCheck, CloudOff,
+  ChevronRight, Download, Palette, ShieldCheck, KeyRound
 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import SEO from '../components/SEO';
+import Toast from '../components/Toast';
+import ThemeToggle from '../components/ThemeToggle';
+import { parseDate } from '../expenseUtils';
 
 export default function Profile({ expenses = [], resetData, user, onLogout }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => localStorage.getItem("username") || "");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-  
+
   const [confirmState, setConfirmState] = useState({
     show: false,
     message: "",
@@ -20,28 +22,11 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const savedName = localStorage.getItem("username");
-    if (savedName) setName(savedName);
-  }, []);
-
-  useEffect(() => {
-    const originalConfirm = window.confirm;
-
-    window.confirm = (message) => {
-      return new Promise((resolve) => {
-        setConfirmState({
-          show: true,
-          message,
-          onConfirm: resolve,
-        });
-      });
-    };
-
-    return () => {
-      window.confirm = originalConfirm;
-    };
-  }, []);
+  // 🔹 Opens the custom modal and resolves true/false
+  const askConfirm = (message) =>
+    new Promise((resolve) => {
+      setConfirmState({ show: true, message, onConfirm: resolve });
+    });
 
   const triggerToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -55,15 +40,15 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     if (!trimmedName) return;
     localStorage.setItem("username", trimmedName);
     setName(trimmedName);
-    triggerToast("Profile Updated", "success");
+    triggerToast("Profile updated", "success");
   };
 
   const handleLogoutAction = async () => {
     try {
       await onLogout();
-      triggerToast("Logged Out Successfully", "info");
-    } catch (err) {
-      triggerToast("Logout Failed", "warning");
+      triggerToast("Logged out", "info");
+    } catch {
+      triggerToast("Logout failed", "warning");
     }
   };
 
@@ -74,34 +59,23 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     }
 
     try {
-      const headers = ["Date", "Time", "Amount", "Category", "Note"];
+      const headers = ["Date", "Time", "Amount", "Category", "Payment", "Note"];
 
-      // 1. Pragmatic parser with manual +5.5 hour IST offset
-      const parseDate = (raw) => {
-        if (!raw) return new Date(NaN);
-        const d = new Date(raw);
-        if (isNaN(d.getTime())) return new Date(NaN);
-        
-        // Explicitly add 5.5 hours to correct the DB offset
-        return new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
-      };
+      // 1. Sort chronologically
+      const sortedExpenses = [...expenses].sort((a, b) => parseDate(b) - parseDate(a));
 
-      // 2. Sort chronologically 
-      const sortedExpenses = [...expenses].sort(
-        (a, b) => parseDate(b.created_at || b.date) - parseDate(a.created_at || a.date)
-      );
-
-      // 3. Map rows safely
+      // 2. Map rows safely
       const rows = sortedExpenses.map((exp) => {
-        const d = parseDate(exp.created_at || exp.date);
+        const d = parseDate(exp);
 
         const safeAmount = Number(exp.amount) || 0;
         const safeCategory = exp.category || "Other";
+        const safePayment = exp.payment_method || "Online";
         const safeNote = `"${(exp.note || "").replace(/"/g, '""')}"`;
 
         // Graceful fallback for completely corrupt data
         if (isNaN(d.getTime())) {
-          return ["Invalid Date", "--:--", safeAmount, safeCategory, safeNote];
+          return ["Invalid Date", "--:--", safeAmount, safeCategory, safePayment, safeNote];
         }
 
         return [
@@ -109,6 +83,7 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
           d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
           safeAmount,
           safeCategory,
+          safePayment,
           safeNote
         ];
       });
@@ -122,19 +97,19 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
 
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      
+
       const dateString = new Date().toLocaleDateString("en-IN").replace(/\//g, '-');
       link.download = `expensio_${dateString}.csv`;
-      
-      link.click();
-      
-      // Prevent memory leaks
-      URL.revokeObjectURL(link.href);
 
-      triggerToast("CSV Downloaded", "success");
+      link.click();
+
+      // Prevent memory leaks (delay so the download can start first)
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+      triggerToast("CSV downloaded", "success");
     } catch (err) {
       console.error(err);
-      triggerToast("Export Failed", "warning");
+      triggerToast("Export failed", "warning");
     }
   };
 
@@ -143,222 +118,211 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
     return sum + (isNaN(amt) ? 0 : amt);
   }, 0);
 
-  const userIdentifier = user?.email || name || "Guest User";
+  const now = new Date();
+  const monthTotal = expenses.reduce((sum, e) => {
+    const d = parseDate(e);
+    const amt = Number(e.amount);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && !isNaN(amt) ? sum + amt : sum;
+  }, 0);
+
+  const userIdentifier = name || user?.email || "Guest User";
+  const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+  const rowClass = "w-full min-h-14 px-4 flex items-center justify-between gap-3 transition-colors hover:bg-surface-2 active:bg-surface-2";
+  const iconWrap = "w-9 h-9 shrink-0 rounded-full flex items-center justify-center";
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white px-6 py-10 pb-32 max-w-md mx-auto font-sans relative overflow-hidden">
-      <SEO 
-        title="Profile - Expensio" 
-        description="Manage your profile, view stats, and export your expense data." 
+    <div className="min-h-screen px-4 pt-safe pb-nav max-w-md mx-auto">
+      <SEO
+        title="Profile - Expensio"
+        description="Manage your profile, view stats, and export your expense data."
       />
-      {/* 🔹 TOAST SYSTEM */}
-      <AnimatePresence>
-        {toast.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -100, x: "-50%" }}
-            animate={{ opacity: 1, y: 0, x: "-50%" }}
-            exit={{ opacity: 0, y: -100, x: "-50%" }}
-            className="fixed top-6 left-1/2 z-[100] w-[90%] max-w-xs pointer-events-none"
-          >
-            <div className={`backdrop-blur-xl p-4 rounded-3xl flex items-center gap-3 border shadow-2xl ${
-              toast.type === "success" ? "bg-emerald-500/10 border-emerald-500/50 shadow-emerald-500/10" :
-              toast.type === "warning" ? "bg-red-500/10 border-red-500/50 shadow-red-500/10" :
-              "bg-indigo-500/10 border-indigo-500/50 shadow-indigo-500/10"
-            }`}>
-              <div className={`rounded-full p-1.5 ${
-                toast.type === "success" ? "bg-emerald-500" :
-                toast.type === "warning" ? "bg-red-500" : "bg-indigo-500"
-              }`}>
-                {toast.type === "success" && <CheckCircle2 size={16} className="text-black" />}
-                {toast.type === "warning" && <AlertTriangle size={16} className="text-black" />}
-                {toast.type === "info" && <Info size={16} className="text-black" />}
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-bold ${
-                  toast.type === "success" ? "text-emerald-400" :
-                  toast.type === "warning" ? "text-red-400" : "text-indigo-400"
-                }`}>{toast.message}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast show={toast.show} message={toast.message} type={toast.type} />
 
-      <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10" />
-
-      <header className="mb-10 text-center">
-        <h1 className="text-3xl font-black italic tracking-tighter bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent mb-8">Profile.</h1>
-
-        <div className="relative inline-block group">
-          <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-indigo-600 to-emerald-500 p-[2px] shadow-2xl shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-500">
-            <div className="w-full h-full rounded-[calc(2.5rem-2px)] bg-[#0a0a0a] flex items-center justify-center">
-              <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 to-emerald-400">
-                {userIdentifier.charAt(0).toUpperCase()}
-              </span>
-            </div>
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-500 rounded-xl border-4 border-[#050505] flex items-center justify-center shadow-lg">
-            <ShieldAlert size={12} className="text-white" />
-          </div>
-        </div>
-
-        <h2 className="mt-4 text-xl font-bold tracking-tight truncate px-4">{name || "Guest User"}</h2>
-        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-gray-400 mt-1">
-          {user ? "Authenticated" : "Local Storage Mode"}
-        </p>
+      <header className="flex items-center justify-between mb-5 px-1">
+        <h1 className="font-display text-3xl font-bold tracking-tight">Profile<span className="text-accent">.</span></h1>
+        <ThemeToggle />
       </header>
 
-      {/* 🔹 Auth Section */}
-      <section className="mb-8">
+      {/* Identity — original big rounded avatar with badge */}
+      <section className="text-center mb-6">
+        <div className="relative inline-block">
+          <div className="absolute inset-0 rounded-[2.5rem] bg-accent-soft blur-2xl" aria-hidden="true" />
+          <div className="relative w-24 h-24 rounded-[2.5rem] bg-linear-to-br from-primary to-primary-2 p-[2px] shadow-card">
+            <div className="w-full h-full rounded-[calc(2.5rem-2px)] bg-surface flex items-center justify-center font-display text-4xl font-bold text-accent">
+              {userIdentifier.charAt(0).toUpperCase()}
+            </div>
+          </div>
+          <span className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-xl border-4 border-bg flex items-center justify-center ${user ? "bg-cash text-white" : "bg-surface-2 text-muted"}`} aria-hidden="true">
+            {user ? <ShieldCheck size={13} /> : <CloudOff size={13} />}
+          </span>
+        </div>
+        <p className="mt-4 font-display text-2xl font-bold truncate px-4">{userIdentifier}</p>
+        <p className={`mt-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${user ? "text-emerald-700 dark:text-emerald-400" : "text-muted"}`}>
+          {user ? <CloudCheck size={14} /> : <CloudOff size={14} />}
+          {user ? "Cloud sync on" : "Local storage mode"}
+        </p>
+      </section>
+
+      {/* Stats */}
+      <section className="grid grid-cols-3 gap-3 mb-4">
+        {[
+          { label: "Month", value: inr(monthTotal) },
+          { label: "All time", value: inr(total) },
+          { label: "Logs", value: expenses.length },
+        ].map(({ label: l, value }) => (
+          <div key={l} className="card rounded-[1.5rem] p-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted truncate">{l}</p>
+            <p className="mt-1 font-display text-lg font-bold tabular-nums truncate">{value}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* Auth */}
+      <section className="mb-6">
         {!user ? (
-          <button
-            onClick={() => navigate("/login")}
-            className="w-full bg-white text-black p-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-white/5"
-          >
-            <LogIn size={18} /> Connect Cloud Sync
-          </button>
+          <div className="card rounded-[2rem] p-5">
+            <p className="font-semibold">Back up your expenses</p>
+            <p className="text-sm text-muted mt-1 mb-4">Log in to keep your data safe and use it on any device.</p>
+            <button
+              onClick={() => navigate("/login")}
+              className="w-full bg-linear-to-br from-primary to-primary-2 text-on-primary min-h-13 rounded-full font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-card"
+            >
+              <LogIn size={18} /> Connect cloud sync
+            </button>
+          </div>
         ) : (
-          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-[1.8rem] flex items-center justify-between">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-10 h-10 flex-shrink-0 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                <CloudSync size={20} />
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-emerald-400">Cloud Sync Active</p>
-                <p className="text-[10px] text-gray-500 font-medium truncate">{user.email}</p>
+          <div className="card rounded-[2rem] px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 shrink-0 rounded-2xl bg-emerald-500/10 text-cash dark:text-emerald-400 flex items-center justify-center"><CloudCheck size={20} /></span>
+              <div className="min-w-0">
+                <p className="text-xs text-muted">Signed in as</p>
+                <p className="text-sm font-medium truncate">{user.email}</p>
               </div>
             </div>
-            <button 
-              onClick={handleLogoutAction} 
-              className="p-3 text-gray-400 hover:text-red-500 transition-colors active:scale-90 flex-shrink-0"
+            <button
+              onClick={handleLogoutAction}
+              className="shrink-0 flex items-center gap-1.5 text-sm font-semibold text-red-600 dark:text-red-400 px-4 min-h-11 rounded-full bg-red-500/10 active:scale-95 transition-all"
             >
-              <LogOut size={18} />
+              <LogOut size={16} /> Log out
             </button>
           </div>
         )}
       </section>
 
-      {/* 🔹 Settings */}
-      <section className="mb-10 space-y-4">
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Preferences</p>
-        <div className="relative flex items-center">
-          <input
-            type="text"
-            placeholder="Display Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full bg-[#0c0c0c] border border-white/5 p-5 pr-16 rounded-[2rem] text-sm font-bold outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-800 shadow-inner"
-          />
-          <button
-            onClick={handleSave}
-            className="absolute right-2 p-3.5 bg-indigo-500 rounded-2xl text-white active:scale-90 transition-all shadow-lg shadow-indigo-500/20"
-          >
-            <Save size={18} />
+      {/* Settings */}
+      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted mb-2 px-2">Account</h2>
+      <div className="card rounded-[2rem] overflow-hidden divide-y divide-line mb-5">
+        <div className="p-4">
+          <label htmlFor="displayName" className="text-xs text-muted">Display name</label>
+          <div className="mt-1.5 flex gap-2">
+            <input
+              id="displayName"
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              className="flex-1 min-w-0 bg-surface-2 px-4 min-h-11 rounded-full text-sm outline-none border border-transparent focus:border-accent transition-colors placeholder:text-muted/70"
+            />
+            <button
+              onClick={handleSave}
+              aria-label="Save name"
+              className="shrink-0 w-11 h-11 bg-linear-to-br from-primary to-primary-2 text-on-primary rounded-full flex items-center justify-center active:scale-95 transition-transform"
+            >
+              <Save size={18} />
+            </button>
+          </div>
+        </div>
+        {user && (
+          <button onClick={() => navigate("/update-password")} className={rowClass}>
+            <span className="flex items-center gap-3">
+              <span className={`${iconWrap} bg-accent-soft text-accent`}><KeyRound size={18} /></span>
+              <span className="text-sm font-medium">Change password</span>
+            </span>
+            <ChevronRight size={18} className="text-muted" />
           </button>
+        )}
+      </div>
+
+      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted mb-2 px-2">App</h2>
+      <div className="card rounded-[2rem] overflow-hidden divide-y divide-line mb-5">
+        <div className={rowClass}>
+          <span className="flex items-center gap-3">
+            <span className={`${iconWrap} bg-accent-soft text-accent`}><Palette size={18} /></span>
+            <span className="text-sm font-medium">Light / dark mode</span>
+          </span>
+          <ThemeToggle />
         </div>
-      </section>
 
-      {/* 🔹 Bento Stats */}
-      <section className="grid grid-cols-2 gap-4 mb-10">
-        <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center group active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/5 flex items-center justify-center mb-3">
-            <Wallet size={20} className="text-indigo-400" />
-          </div>
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-400 mb-1 text-center">Net Burn</p>
-          <p className="text-xl font-black text-white">₹{total.toLocaleString('en-IN')}</p>
-        </div>
-
-        <div className="bg-[#0c0c0c] border border-white/5 p-6 rounded-[2.5rem] flex flex-col items-center group active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/5 flex items-center justify-center mb-3">
-            <Database size={20} className="text-emerald-400" />
-          </div>
-          <p className="text-[9px] uppercase font-black tracking-widest text-gray-400 mb-1 text-center">Entries</p>
-          <p className="text-xl font-black text-white">{expenses.length}</p>
-        </div>
-      </section>
-
-      {/* 🔹 Export Data */}
-      <section className="mb-10">
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">
-          Data
-        </p>
-
-        <button
-          onClick={handleExportCSV}
-          className="w-full group bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] p-5 rounded-[2rem] flex items-center justify-between transition-all active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-4 text-white">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center group-hover:rotate-12 transition-transform">
-              <Download size={18} className="text-indigo-400" />
-            </div>
-            <span className="text-sm font-bold">Export CSV</span>
-          </div>
-          <ChevronRight size={18} className="text-white/20" />
+        <button onClick={handleExportCSV} className={rowClass}>
+          <span className="flex items-center gap-3">
+            <span className={`${iconWrap} bg-accent-soft text-accent`}><Download size={18} /></span>
+            <span className="text-sm font-medium">Export as CSV</span>
+          </span>
+          <ChevronRight size={18} className="text-muted" />
         </button>
-      </section>
+      </div>
 
-      {/* 🔹 Danger Zone */}
-      <section>
-        <p className="px-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Danger Zone</p>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted mb-2 px-2">Danger zone</h2>
+      <div className="card rounded-[2rem] overflow-hidden mb-6">
         <button
           onClick={async () => {
-            const confirmed = await window.confirm("Permanent Action: Erase all data and logs?");
+            const confirmed = await askConfirm("This will permanently delete all your expenses. This can't be undone.");
             if (confirmed) {
-              resetData();
-              triggerToast("All Data Cleared", "warning");
+              const ok = await resetData();
+              triggerToast(ok ? "All data cleared" : "Couldn't clear data. Try again.", "warning");
             }
           }}
-          className="w-full group bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 p-5 rounded-[2rem] flex items-center justify-between transition-all active:scale-[0.98]"
+          className={rowClass}
         >
-          <div className="flex items-center gap-4 text-red-500">
-            <div className="w-10 h-10 rounded-2xl bg-red-500/10 flex items-center justify-center group-hover:rotate-12 transition-transform">
-              <Trash2 size={18} />
-            </div>
-            <span className="text-sm font-bold">Clear All Data</span>
-          </div>
-          <ChevronRight size={18} className="text-red-900/30" />
+          <span className="flex items-center gap-3">
+            <span className={`${iconWrap} bg-red-500/10 text-red-500`}><Trash2 size={18} /></span>
+            <span className="text-sm font-medium text-red-600 dark:text-red-400">Clear all data</span>
+          </span>
+          <ChevronRight size={18} className="text-muted" />
         </button>
-      </section>
+      </div>
 
-      <footer className="mt-16 text-center">
-        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-800">Expensio Cloud • v1.0.4</p>
-      </footer>
+      <p className="text-center text-xs text-muted">Expensio v4</p>
 
-      {/* ✅ CUSTOM MODAL OVERLAY */}
+      {/* ✅ CUSTOM MODAL OVERLAY (bottom sheet) */}
       <AnimatePresence>
         {confirmState.show && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md px-6"
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           >
             <motion.div
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.85, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="w-full max-w-sm bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirmTitle"
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              className="card w-full max-w-sm p-6 rounded-[2rem]"
             >
-              <div className="w-16 h-16 mx-auto mb-6 rounded-[1.5rem] bg-red-500/10 flex items-center justify-center">
-                <Trash2 className="text-red-500" size={28} />
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Trash2 className="text-red-500" size={24} />
               </div>
 
-              <h3 className="text-center text-xl font-black tracking-tight mb-2">
-                Confirm Action
-              </h3>
+              <h3 id="confirmTitle" className="text-center font-display text-xl font-bold mb-1">Clear all data?</h3>
 
-              <p className="text-center text-xs text-gray-500 mb-8 leading-relaxed">
+              <p className="text-center text-sm text-muted mb-6">
                 {confirmState.message}
               </p>
 
               <div className="flex gap-3">
                 <button
+                  autoFocus
                   onClick={() => {
                     confirmState.onConfirm(false);
                     setConfirmState({ show: false, message: "", onConfirm: null });
                   }}
-                  className="flex-1 py-4 rounded-[1.5rem] bg-white/[0.05] text-gray-400 font-bold active:scale-95 transition-transform"
+                  className="flex-1 min-h-12 rounded-full bg-surface-2 font-semibold active:scale-95 transition-transform"
                 >
                   Cancel
                 </button>
@@ -368,9 +332,9 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
                     confirmState.onConfirm(true);
                     setConfirmState({ show: false, message: "", onConfirm: null });
                   }}
-                  className="flex-1 py-4 rounded-[1.5rem] bg-red-500 text-black font-black active:scale-95 transition-transform shadow-lg shadow-red-500/20"
+                  className="flex-1 min-h-12 rounded-full bg-red-600 text-white font-semibold active:scale-95 transition-transform"
                 >
-                  Confirm
+                  Delete
                 </button>
               </div>
             </motion.div>

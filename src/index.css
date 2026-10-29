@@ -1,1 +1,211 @@
 @import "tailwindcss";
+
+/* 🔹 Dark mode is driven by the "dark" class on <html> (set in index.html + ThemeToggle) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────────────────────────────────────────────────────
+   v4 "Black & Gold" tokens — the original Expensio black look, gold accent.
+   Every page uses these — no hard-coded colors in components.
+   Text pairs checked >= 4.5:1; chart + cash/online colors passed the
+   dataviz validator in both themes.
+   ─────────────────────────────────────────────────────────── */
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --line: #e7e4dc;
+  --fg: #0a0a0a;
+  --muted: #57534e;
+  --accent: #8a6a0c;
+  --accent-soft: rgb(184 144 31 / 0.12);
+  --primary: #e3bd4f;
+  --primary-2: #b8901f;
+  --on-primary: #0a0a0a;
+  --cash: #047857;
+  --online: #a07c10;
+  --chart: #a07c10;
+  --chart-dim: rgb(160 124 16 / 0.22);
+  --glass: rgb(255 255 255 / 0.75);
+  --aurora-1: rgb(201 162 39 / 0.12);
+  --aurora-2: transparent;
+  --shadow: 0 1px 2px rgb(10 10 10 / 0.04), 0 8px 24px rgb(10 10 10 / 0.06);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #000000;
+  --surface: #0c0c0c;
+  --surface-2: #161616;
+  --line: rgb(255 255 255 / 0.07);
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --accent: #e2b84a;
+  --accent-soft: rgb(226 184 74 / 0.12);
+  --primary: #e9c35a;
+  --primary-2: #b8901f;
+  --on-primary: #0a0a0a;
+  --cash: #059669;
+  --online: #a9851c;
+  --chart: #a9851c;
+  --chart-dim: rgb(169 133 28 / 0.3);
+  --glass: rgb(12 12 12 / 0.78);
+  --aurora-1: rgb(201 162 39 / 0.09);
+  --aurora-2: transparent;
+  --shadow: 0 20px 40px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-primary: var(--primary);
+  --color-primary-2: var(--primary-2);
+  --color-on-primary: var(--on-primary);
+  --color-cash: var(--cash);
+  --color-online: var(--online);
+  --color-chart: var(--chart);
+  --color-chart-dim: var(--chart-dim);
+  --color-glass: var(--glass);
+  --shadow-card: var(--shadow);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  /* clip (not hidden) so position: sticky keeps working */
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* 🔹 One faint gold glow top-left, like the original indigo blob */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 30% at 0% 0%, var(--aurora-1), transparent 70%);
+}
+
+/* 🔹 Block text selection, dragging and the long-press copy menu */
+* {
+  -webkit-touch-callout: none; /* iOS Safari long-press menu */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 🔹 ...but inputs still work normally (type, select, paste) */
+input,
+textarea {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 🔹 Clickable things look clickable (Tailwind v4 resets this) */
+button:not(:disabled),
+[role="button"],
+a {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* 🔹 Keyboard focus is visible on buttons/links.
+   Inputs skip the ring — they show focus with their own border / caret. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* 🔹 Reusable surfaces */
+@utility card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow);
+}
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+}
+@utility text-gradient {
+  background: linear-gradient(180deg, var(--fg) 40%, color-mix(in oklab, var(--fg) 55%, transparent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 🔹 Safe areas (iPhone notch / home bar) */
+@utility pt-safe {
+  padding-top: calc(1.75rem + env(safe-area-inset-top));
+}
+@utility pb-nav {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+}
+
+/* 🔹 Hide number input spinners */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Screen-reader-only content (chart data tables) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

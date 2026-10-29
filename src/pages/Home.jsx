@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { 
-  TrendingUp, Clock, 
-  Utensils, Bike, ShoppingCart, Receipt, 
-  Plus, Coffee, Package, MoreHorizontal, Trash2, Award
-} from 'lucide-react';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { Award, Wallet, CreditCard, Plus, TrendingUp, TrendingDown, Receipt, ArrowLeftRight } from 'lucide-react';
 import SEO from '../components/SEO';
+import ThemeToggle from '../components/ThemeToggle';
+import BarChart from '../components/BarChart';
+import { CATEGORIES, getCategoryStyle, normalizeCategory, parseDate } from '../expenseUtils';
+
+const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 const AnimatedNumber = ({ value }) => {
   const count = useMotionValue(0);
-  const rounded = useTransform(count, (latest) => 
+  const rounded = useTransform(count, (latest) =>
     Math.round(latest).toLocaleString("en-IN")
   );
 
   useEffect(() => {
-    const controls = animate(count, value, { 
-      duration: 0.8, 
-      ease: [0.16, 1, 0.3, 1] 
+    const controls = animate(count, value, {
+      duration: 0.8,
+      ease: [0.16, 1, 0.3, 1]
     });
     return controls.stop;
   }, [value, count]);
@@ -25,61 +26,48 @@ const AnimatedNumber = ({ value }) => {
   return <motion.span>{rounded}</motion.span>;
 };
 
-export default function Home({ expenses = [], onDelete, username }) {
-  const [selectedId, setSelectedId] = useState(null);
+export default function Home({ expenses = [], username }) {
   const [showTotal, setShowTotal] = useState(false);
-  
-  // ✅ ADDED: State to toggle Cash/Online boxes
+
+  // ✅ State to toggle Cash/Online split between month and all time
   const [isPaymentMonthly, setIsPaymentMonthly] = useState(false);
 
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
+  const inMonth = (d, m = currentMonth, y = currentYear) => d.getMonth() === m && d.getFullYear() === y;
 
-  const categoryIcons = {
-    Food: { icon: <Utensils size={18} />, color: "text-orange-400 bg-orange-500/10", bar: "bg-orange-500" },
-    Ride: { icon: <Bike size={18} />, color: "text-blue-400 bg-blue-500/10", bar: "bg-blue-500" },
-    Blinkit: { icon: <Package size={18} />, color: "text-yellow-400 bg-yellow-500/10", bar: "bg-yellow-500" },
-    Zomato: { icon: <Plus size={18} />, color: "text-red-400 bg-red-500/10", bar: "bg-red-500" },
-    Shopping: { icon: <ShoppingCart size={18} />, color: "text-purple-400 bg-purple-500/10", bar: "bg-purple-500" },
-    Bills: { icon: <Receipt size={18} />, color: "text-emerald-400 bg-emerald-500/10", bar: "bg-emerald-500" },
-    Juice: { icon: <Coffee size={18} />, color: "text-pink-400 bg-pink-500/10", bar: "bg-pink-500" },
-    Other: { icon: <MoreHorizontal size={18} />, color: "text-gray-400 bg-gray-500/10", bar: "bg-gray-500" },
-  };
-
-  const normalizeCategory = (exp) => {
-    const text = `${exp.category || ""} ${exp.note || ""}`.toLowerCase();
-    if (text.includes("blinkit")) return "Blinkit";
-    if (text.includes("zomato")) return "Zomato";
-    if (text.includes("juice") || text.includes("coconut") || text.includes("drink")) return "Juice";
-    if (text.includes("ride") || text.includes("metro") || text.includes("uber")) return "Ride";
-    if (text.includes("bill") || text.includes("electric") || text.includes("rent") || text.includes("recharge") || text.includes("internet") || text.includes("wifi")) return "Bills";
-    if (text.includes("shopping") || text.includes("cloth") || text.includes("amazon") || text.includes("flipkart")) return "Shopping";
-    if (text.includes("food") || text.includes("meal") || text.includes("lunch") || text.includes("dinner")) return "Food";
-    return "Other";
-  };
-
-  const monthlyTotal = expenses.reduce((sum, e) => {
-    const d = new Date(e.created_at || e.date);
-    return (d.getMonth() === currentMonth && d.getFullYear() === currentYear)
-      ? sum + Number(e.amount) : sum;
-  }, 0);
-
+  const monthlyTotal = expenses.reduce((sum, e) => inMonth(parseDate(e)) ? sum + Number(e.amount) : sum, 0);
   const overallTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const todayTotal = expenses.reduce((sum, e) => {
-    const d = new Date(e.created_at || e.date);
-    const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-    return isToday ? sum + Number(e.amount) : sum;
-  }, 0);
+  const prevM = currentMonth === 0 ? 11 : currentMonth - 1;
+  const prevY = currentMonth === 0 ? currentYear - 1 : currentYear;
+  const prevMonthTotal = expenses.reduce((sum, e) => inMonth(parseDate(e), prevM, prevY) ? sum + Number(e.amount) : sum, 0);
+  const change = prevMonthTotal > 0 ? Math.round(((monthlyTotal - prevMonthTotal) / prevMonthTotal) * 100) : null;
+
+  const sameDay = (a, b) => a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+  const todayTotal = expenses.reduce((sum, e) => sameDay(parseDate(e), today) ? sum + Number(e.amount) : sum, 0);
+
+  // Last 7 days for the mini chart (today on the right)
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    const value = expenses.reduce((s, e) => sameDay(parseDate(e), d) ? s + Number(e.amount) : s, 0);
+    return {
+      key: d.toDateString(),
+      label: d.toLocaleDateString("en-IN", { weekday: "narrow" }),
+      tip: i === 6 ? "Today" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }),
+      value,
+    };
+  });
+  const weekTotal = week.reduce((s, d) => s + d.value, 0);
 
   const noteTotals = expenses.reduce((acc, exp) => {
-    const d = new Date(exp.created_at || exp.date);
-
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+    if (inMonth(parseDate(exp))) {
       let raw = (exp.note || "").toString().trim().toLowerCase();
 
-      const ignoreWords = ["food", "ride", "zomato", "blinkit", "shopping", "bills", "juice", "other"];
+      const ignoreWords = CATEGORIES.map((c) => c.name.toLowerCase());
       if (!raw || ignoreWords.includes(raw)) return acc;
 
       let key = raw;
@@ -97,12 +85,11 @@ export default function Home({ expenses = [], onDelete, username }) {
   }, {});
 
   let topItemEntry = Object.entries(noteTotals)
-    .filter(([_, val]) => val > 0)
+    .filter(([, val]) => val > 0)
     .sort((a, b) => b[1] - a[1])[0] || null;
 
   const categoryTotals = expenses.reduce((acc, exp) => {
-    const d = new Date(exp.created_at || exp.date);
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+    if (inMonth(parseDate(exp))) {
       const normalized = normalizeCategory(exp);
       acc[normalized] = (acc[normalized] || 0) + Number(exp.amount);
     }
@@ -125,7 +112,7 @@ export default function Home({ expenses = [], onDelete, username }) {
   if (topItemEntry && monthlyTotal > 0) {
     const rawPercentage = (topItemEntry[1] / monthlyTotal) * 100;
     topItemPercentage = Math.round(rawPercentage);
-    
+
     if (topItemPercentage === 0 && rawPercentage > 0) {
       displayPercentage = "<1%";
     } else {
@@ -133,20 +120,15 @@ export default function Home({ expenses = [], onDelete, username }) {
     }
   }
 
-  const displayTopName = topItemEntry 
-    ? topItemEntry[0].charAt(0).toUpperCase() + topItemEntry[0].slice(1) 
+  const displayTopName = topItemEntry
+    ? topItemEntry[0].charAt(0).toUpperCase() + topItemEntry[0].slice(1)
     : "";
 
-  const recentTransactions = [...expenses]
-    .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
-    .slice(0, 5);
-
-  // ✅ ADDED: Calculate BOTH Monthly and All-Time Payment splits
+  // ✅ Calculate BOTH Monthly and All-Time Payment splits
   const paymentStats = expenses.reduce((acc, exp) => {
     const method = exp.payment_method || "Online";
     const amt = Number(exp.amount) || 0;
-    const d = new Date(exp.created_at || exp.date);
-    const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    const isCurrentMonth = inMonth(parseDate(exp));
 
     if (method === "Cash") {
       acc.allCash += amt;
@@ -159,197 +141,180 @@ export default function Home({ expenses = [], onDelete, username }) {
     return acc;
   }, { allCash: 0, moCash: 0, allOnline: 0, moOnline: 0 });
 
-  // Determine what to display based on state
   const displayCash = isPaymentMonthly ? paymentStats.moCash : paymentStats.allCash;
   const displayOnline = isPaymentMonthly ? paymentStats.moOnline : paymentStats.allOnline;
 
-  return (
-    <div className="min-h-screen bg-[#050505] text-white px-5 py-8 pb-28 font-sans max-w-md mx-auto relative overflow-hidden">
-      <SEO 
-        title="Expensio – Smart Expense Tracker" 
-        description="Track your daily expenses, manage money, and gain insights with Expensio." 
-      />
-      <div className="fixed top-[-5%] left-[-10%] w-[70%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
+  const monthName = today.toLocaleDateString("en-IN", { month: "long" });
+  let savedName = "";
+  try {
+    savedName = localStorage.getItem("username") || "";
+  } catch {
+    // storage blocked → fall back to email / "Welcome"
+  }
+  const displayName = savedName || (username && username !== "Guest" ? username.split("@")[0] : "Welcome");
+  const hour = today.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-      {/* Header */}
-      <header className="flex justify-between items-center mb-10 px-1">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-400 font-black mb-0.5">Dashboard</p>
-          <h1 className="text-2xl font-black italic bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Expensio.</h1>
+  const label = "text-xs font-semibold uppercase tracking-[0.18em] text-muted";
+
+  return (
+    <div className="min-h-screen px-4 pt-safe pb-nav max-w-md mx-auto">
+      <SEO
+        title="Expensio – Smart Expense Tracker"
+        description="Track your daily expenses, manage money, and gain insights with Expensio."
+      />
+
+      {/* Header — original "Dashboard / Expensio." wordmark */}
+      <header className="flex justify-between items-center mb-7 px-1">
+        <div className="min-w-0">
+          <p className={label}>{greeting}{savedName ? `, ${displayName}` : ""}</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            Expensio<span className="text-accent">.</span>
+          </h1>
         </div>
-        <Link to="/profile" className="active:scale-90 transition-transform">
-          <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-xs font-black shadow-xl text-indigo-400 uppercase">
-            {username ? username.slice(0, 2) : "GU"}
-          </div>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link
+            to="/profile"
+            aria-label="Profile"
+            className="w-11 h-11 rounded-2xl bg-surface border border-line flex items-center justify-center text-sm font-bold uppercase text-accent active:scale-95 transition-transform"
+          >
+            {username && username !== "Guest" ? username.slice(0, 2) : "GU"}
+          </Link>
+        </div>
       </header>
 
-      {/* Toggle Card */}
-      <motion.div
-        onClick={() => setShowTotal(!showTotal)}
-        whileTap={{ scale: 0.96 }}
-        className="relative bg-[#0c0c0c] border border-white/5 p-8 rounded-[2.8rem] mb-6 overflow-hidden cursor-pointer shadow-2xl group"
-      >
-        <div className={`absolute inset-0 transition-opacity duration-700 opacity-40 ${showTotal ? 'bg-gradient-to-br from-emerald-600/20 via-transparent' : 'bg-gradient-to-br from-indigo-600/20 via-transparent'}`} />
-        <div className="relative z-10 text-center">
-          <div className="flex justify-between items-start mb-4">
-             <div className="px-3 py-1.5 bg-white/5 rounded-full border border-white/5 backdrop-blur-md">
-                <p className="text-[9px] uppercase tracking-[0.2em] text-white/80 font-black">
-                  {showTotal ? "Lifetime Burn" : "Monthly Burn"}
-                </p>
-             </div>
-             <motion.div animate={{ rotate: showTotal ? 180 : 0 }} className="text-indigo-500/40"><TrendingUp size={20} /></motion.div>
-          </div>
-          <div className="flex items-baseline justify-center gap-1 mt-2">
-            <span className="text-2xl font-light text-gray-500">₹</span>
-            <h2 className="text-6xl font-black tracking-tighter tabular-nums">
+      {/* Hero — one big number (tap to switch month / lifetime) + 7-day chart */}
+      <section className="card rounded-[2.5rem] p-6 mb-4 relative overflow-hidden">
+        <div className="absolute -left-16 -top-16 w-56 h-56 rounded-full bg-accent-soft blur-3xl pointer-events-none" />
+        <button
+          onClick={() => setShowTotal(!showTotal)}
+          aria-label={`${showTotal ? "Lifetime" : "Monthly"} spend. Tap to switch`}
+          className="relative w-full text-center"
+        >
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2 border border-line text-xs font-semibold uppercase tracking-[0.18em] text-fg/80">
+            {showTotal ? "Lifetime spend" : `${monthName} spend`}
+            <ArrowLeftRight size={12} className="text-accent" />
+          </span>
+          <span className="mt-4 flex items-baseline justify-center gap-1">
+            <span className="text-2xl font-light text-muted">₹</span>
+            <span className="font-display text-6xl font-extrabold tracking-tight tabular-nums text-gradient">
               <AnimatedNumber value={showTotal ? overallTotal : monthlyTotal} />
-            </h2>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Bento Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-10">
-        
-        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm">
-          <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Today</p>
-          <p className="text-2xl font-black text-emerald-400 truncate">₹{todayTotal.toLocaleString("en-IN")}</p>
-        </div>
-        
-        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm">
-          <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Logs</p>
-          <p className="text-2xl font-black text-white truncate">{expenses.length}</p>
-        </div>
-
-        {/* 🔥 CLICKABLE Payment Split: Cash */}
-        <motion.div 
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsPaymentMonthly(!isPaymentMonthly)}
-          className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm cursor-pointer select-none"
-        >
-          <div className="flex justify-between items-center">
-            <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Cash</p>
-            <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-lg transition-colors duration-300 ${isPaymentMonthly ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-gray-500'}`}>
-              {isPaymentMonthly ? "Month" : "All Time"}
             </span>
-          </div>
-          <p className="text-2xl font-black text-emerald-400 truncate">
-            ₹<AnimatedNumber value={displayCash} />
-          </p>
-        </motion.div>
+          </span>
+          <span className="mt-2 block text-xs text-muted">
+            {!showTotal && change !== null ? (
+              <span className={`inline-flex items-center gap-1 font-semibold ${change > 0 ? "text-red-500 dark:text-red-400" : "text-cash dark:text-emerald-400"}`}>
+                {change > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {change > 0 ? "+" : ""}{change}% vs last month
+              </span>
+            ) : (
+              "Tap to switch"
+            )}
+          </span>
+        </button>
 
-        {/* 🔥 CLICKABLE Payment Split: Online */}
-        <motion.div 
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsPaymentMonthly(!isPaymentMonthly)}
-          className="bg-white/[0.02] border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between h-28 shadow-sm cursor-pointer select-none"
-        >
-          <div className="flex justify-between items-center">
-            <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Online</p>
-            <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded-lg transition-colors duration-300 ${isPaymentMonthly ? 'bg-indigo-500/10 text-indigo-400' : 'bg-white/5 text-gray-500'}`}>
-              {isPaymentMonthly ? "Month" : "All Time"}
+        <div className="relative mt-5 pt-4 border-t border-line">
+          <div className="flex items-baseline justify-between">
+            <p className={label}>Last 7 days</p>
+            <p className="text-xs font-semibold tabular-nums">{inr(weekTotal)}</p>
+          </div>
+          <BarChart
+            data={week}
+            title="Spending over the last 7 days"
+            height={60}
+            highlightKey={week[6].key}
+            format={inr}
+          />
+        </div>
+      </section>
+
+      {/* Tiles — same simple 2×2 as the original */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="card rounded-[2rem] p-5 flex flex-col justify-between min-h-28">
+          <p className={label}>Today</p>
+          <p className="font-display text-2xl font-bold tabular-nums truncate text-cash dark:text-emerald-400">{inr(todayTotal)}</p>
+        </div>
+        <div className="card rounded-[2rem] p-5 flex flex-col justify-between min-h-28">
+          <p className={label}>Logs</p>
+          <p className="font-display text-2xl font-bold tabular-nums truncate">{expenses.length}</p>
+        </div>
+
+        {/* Cash / Online — tap either to switch month ↔ all time */}
+        {[
+          { name: "Cash", value: displayCash, Icon: Wallet, tone: "text-cash dark:text-emerald-400" },
+          { name: "Online", value: displayOnline, Icon: CreditCard, tone: "text-accent" },
+        ].map(({ name, value, Icon, tone }) => (
+          <motion.button
+            key={name}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setIsPaymentMonthly(!isPaymentMonthly)}
+            aria-label={`${name}: ${inr(value)} ${isPaymentMonthly ? "this month" : "all time"}. Tap to switch`}
+            className="card rounded-[2rem] p-5 flex flex-col justify-between min-h-28 text-left"
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span className={`${label} flex items-center gap-1.5`}><Icon size={13} className={tone} /> {name}</span>
+              <span className="text-xs font-medium text-muted bg-surface-2 px-2 py-0.5 rounded-md">
+                {isPaymentMonthly ? "Month" : "All"}
+              </span>
             </span>
-          </div>
-          <p className="text-2xl font-black text-indigo-400 truncate">
-            ₹<AnimatedNumber value={displayOnline} />
-          </p>
-        </motion.div>
+            <span className={`font-display text-2xl font-bold tabular-nums truncate ${tone}`}>
+              ₹<AnimatedNumber value={value} />
+            </span>
+          </motion.button>
+        ))}
+      </div>
 
-        {/* Top Spending Card */}
-        {topItemEntry && (() => {
-          const normalized = normalizeCategory({ 
-            category: topItemEntry[0], 
-            note: topItemEntry[0] || "" 
-          });
-          const categoryData = categoryIcons[normalized] || categoryIcons.Other;
+      {/* Top spending */}
+      {topItemEntry && (() => {
+        const normalized = normalizeCategory({
+          category: topItemEntry[0],
+          note: topItemEntry[0] || ""
+        });
+        const categoryData = getCategoryStyle(normalized);
 
-          return (
-            <div className="col-span-2 bg-gradient-to-r from-white/[0.02] to-white/[0.05] border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between shadow-xl mt-2">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-2xl ${categoryData.color}`}>
-                    {categoryData.icon}
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-black flex items-center gap-1">
-                      <Award size={10} className="text-indigo-500" /> Top Spending
-                    </p>
-                    <p className="font-bold text-white tracking-tight truncate max-w-[140px]">
-                       {displayTopName}
-                    </p>
-                  </div>
+        return (
+          <Link to="/history" className="card rounded-[2rem] p-5 block active:scale-[0.99] transition-transform">
+            <div className="flex justify-between items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center ${categoryData.color}`}>
+                  {categoryData.icon}
                 </div>
-                <div className="text-right">
-                  <p className="font-black text-white text-xl tracking-tight truncate">₹{topItemEntry[1].toLocaleString("en-IN")}</p>
-                  <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">{displayPercentage} Contribution</p>
+                <div className="min-w-0">
+                  <p className={`${label} flex items-center gap-1`}>
+                    <Award size={12} className="text-accent" /> Top spending
+                  </p>
+                  <p className="font-semibold truncate">{displayTopName}</p>
                 </div>
               </div>
-              <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${topItemPercentage}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className={`h-full rounded-full ${categoryData.bar}`} 
-                />
+              <div className="text-right shrink-0">
+                <p className="font-display text-xl font-bold tabular-nums">{inr(topItemEntry[1])}</p>
+                <p className="text-xs text-muted">{displayPercentage} of month</p>
               </div>
             </div>
-          );
-        })()}
-      </div>
+            <div className="w-full bg-surface-2 h-1.5 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${topItemPercentage}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="h-full rounded-full bg-linear-to-r from-primary-2 to-primary"
+              />
+            </div>
+          </Link>
+        );
+      })()}
 
-      {/* Recent Activity */}
-      <div className="flex justify-between items-center mb-6 px-1">
-        <h2 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">Timeline</h2>
-        <Link to="/history" className="px-3 py-1 bg-indigo-500/5 text-[9px] uppercase tracking-widest text-indigo-500 font-black rounded-lg border border-indigo-500/10 active:scale-95 transition-transform">View All</Link>
-      </div>
-
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {recentTransactions.map((item) => {
-            const normalized = normalizeCategory(item);
-            const categoryData = categoryIcons[normalized] || categoryIcons.Other;
-            const isSelected = selectedId === item.id;
-
-            return (
-              <motion.div key={item.id} layout className="relative overflow-hidden rounded-[1.8rem]">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(item.id); setSelectedId(null); }}
-                  className="absolute right-0 inset-y-0 w-20 bg-red-600 flex items-center justify-center text-white active:bg-red-700"
-                >
-                  <Trash2 size={20} />
-                </button>
-
-                <motion.div
-                  animate={{ x: isSelected ? -80 : 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 35 }}
-                  onClick={() => setSelectedId(isSelected ? null : item.id)}
-                  className="relative z-10 bg-[#0c0c0c] border border-white/[0.05] p-4 flex justify-between items-center cursor-pointer active:bg-white/[0.02] transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2.5 rounded-2xl ${categoryData.color} transition-transform duration-300 ${isSelected ? 'scale-90' : ''}`}>
-                      {categoryData.icon}
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm tracking-tight">{item.note || normalized}</p>
-                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 italic flex items-center gap-1">
-                        {new Date(item.created_at || item.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                        <span>•</span>
-                        <span className={item.payment_method === "Cash" ? "text-emerald-400" : "text-indigo-400"}>
-                          {item.payment_method || "Online"}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className={`text-right transition-all duration-300 ${isSelected ? 'opacity-0 scale-50' : 'opacity-100'}`}>
-                    <p className="font-black text-white">₹{Number(item.amount).toLocaleString("en-IN")}</p>
-                  </div>
-                </motion.div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+      {/* Empty state: invite to add the first expense */}
+      {expenses.length === 0 && (
+        <div className="card border-dashed rounded-[2rem] p-8 text-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-accent-soft text-accent flex items-center justify-center"><Receipt size={24} /></div>
+          <p className="font-semibold">No expenses yet</p>
+          <p className="text-sm text-muted mt-1 mb-4">Add your first one to see your stats.</p>
+          <Link to="/add" className="inline-flex items-center gap-1.5 bg-linear-to-br from-primary to-primary-2 text-on-primary text-sm font-semibold px-5 min-h-11 rounded-full active:scale-95 transition-transform">
+            <Plus size={16} /> Add expense
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

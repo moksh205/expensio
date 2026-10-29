@@ -1,23 +1,18 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { 
-  ArrowRight, Sparkles, Lock, AlertCircle, 
-  Mail, Loader2, Eye, EyeOff 
-} from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowRight, Mail, Loader2, UserRound, UserPlus } from "lucide-react";
 import SEO from '../components/SEO';
+import Toast from '../components/Toast';
+import AuthShell from '../components/AuthShell';
+import PasswordField from '../components/PasswordField';
 import { supabase } from "../supabase";
 
 export default function LoginSignup({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // ✅ ADDED: State to manage the Forgot Password button loading/disabled state
-  const [resetLoading, setResetLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -51,6 +46,13 @@ export default function LoginSignup({ onLogin }) {
         // 🔥 Detect existing user
         if (data.user && data.user.identities?.length === 0) {
           showToast("Account already exists. Please login.");
+          return;
+        }
+
+        // 🔥 Email confirmation is on → no session yet, so don't pretend we're logged in
+        if (!data.session) {
+          showToast("Check your email to confirm your account");
+          setIsSignup(false);
           return;
         }
 
@@ -89,132 +91,100 @@ export default function LoginSignup({ onLogin }) {
   };
 
   return (
-    <div className="h-screen bg-[#050505] text-white px-8 flex flex-col justify-center max-w-md mx-auto">
-      <SEO 
-        title="Login / Signup - Expensio" 
-        description="Sign in to securely sync your expenses across all your devices." 
-      /> 
-      
-      {/* Toast */}
-      <div className="fixed top-10 left-0 right-0 flex justify-center z-50">
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              initial={{ y: -40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -40, opacity: 0 }}
-              className="bg-white/10 border border-white/20 px-5 py-2 rounded-xl flex items-center gap-2"
+    <>
+      <SEO
+        title="Login / Signup - Expensio"
+        description="Sign in to securely sync your expenses across all your devices."
+      />
+      <Toast show={Boolean(toast)} message={toast} type="info" />
+
+      <AuthShell
+        backTo="/profile"
+        icon={isSignup ? <UserPlus size={30} /> : <UserRound size={30} />}
+        title={isSignup ? "Create account" : "Welcome back"}
+        subtitle={isSignup ? "Sync your expenses safely across every device." : "Log in to see your expenses on any device."}
+      >
+        {/* Sign up / Log in switch */}
+        <div className="relative flex p-1 bg-surface-2 rounded-full mb-4" role="tablist" aria-label="Account">
+          {[{ v: true, t: "Sign up" }, { v: false, t: "Log in" }].map(({ v, t }) => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={isSignup === v}
+              onClick={() => setIsSignup(v)}
+              className={`relative flex-1 min-h-11 rounded-full text-sm font-semibold transition-colors ${isSignup === v ? "text-fg bg-surface shadow-card" : "text-muted"}`}
             >
-              <AlertCircle size={14} />
-              <span className="text-sm">{toast}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Branding */}
-      <div className="text-center mb-10">
-        <Sparkles className="mx-auto text-indigo-500 mb-3" size={28} />
-        <h1 className="text-3xl font-bold">Expensio</h1>
-      </div>
-
-      <div className="space-y-4">
-
-        <h2 className="text-center text-lg font-semibold">
-          {isSignup ? "Create Account" : "Login"}
-        </h2>
-
-        {/* Email */}
-        <div className="relative">
-          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-4 pl-12 rounded-xl bg-white/10 outline-none"
-          />
+              {t}
+            </button>
+          ))}
         </div>
 
-        {/* Password Group */}
-        <div>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-4 pl-12 pr-12 rounded-xl bg-white/10 outline-none"
-            />
-
-            <button
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+        <form
+          className="card rounded-[2rem] p-5 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          noValidate
+        >
+          {/* Email */}
+          <div>
+            <label htmlFor="loginEmail" className="block text-xs font-semibold uppercase tracking-[0.14em] text-muted mb-2 px-1">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
+              <input
+                id="loginEmail"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full min-h-13 pl-11 pr-4 rounded-2xl bg-surface-2 border border-transparent outline-none focus:border-accent transition-colors placeholder:text-muted/60"
+              />
+            </div>
           </div>
 
-          {/* 🔥 Forgot Password Button */}
+          {/* Password */}
+          <PasswordField
+            id="loginPassword"
+            label="Password"
+            value={password}
+            onChange={setPassword}
+            autoComplete={isSignup ? "new-password" : "current-password"}
+            showStrength={isSignup}
+          />
+
+          {/* 🔥 Forgot Password → its own page (email carried over) */}
           {!isSignup && (
-            <button
-              onClick={async () => {
-                if (!email) {
-                  showToast("Enter email first");
-                  return;
-                }
-
-                setResetLoading(true); // Disable the button
-
-                // Uses window.location.origin so it works on localhost AND your live domain!
-                const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                  redirectTo: `${window.location.origin}/update-password`,
-                });
-
-                if (error) {
-                  showToast("Error sending reset email");
-                } else {
-                  showToast("Reset link sent to email");
-                }
-
-                setResetLoading(false); // Re-enable the button
-              }}
-              disabled={resetLoading} // Tie HTML disabled attribute to state
-              className={`text-xs text-right w-full mt-2 pr-1 font-medium transition-colors ${
-                resetLoading ? "text-gray-500 cursor-not-allowed" : "text-indigo-400 hover:text-indigo-300"
-              }`}
-            >
-              {resetLoading ? "Sending..." : "Forgot Password?"}
-            </button>
+            <div className="text-right -mt-2">
+              <Link
+                to="/reset-password"
+                state={{ email }}
+                className="inline-flex items-center min-h-11 text-sm font-medium text-accent"
+              >
+                Forgot password?
+              </Link>
+            </div>
           )}
-        </div>
 
-        {/* Button */}
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="w-full bg-white text-black p-4 rounded-xl font-bold flex justify-center items-center gap-2"
-        >
-          {loading ? <Loader2 className="animate-spin" size={16} /> : (
-            <>
-              {isSignup ? "Sign Up" : "Login"}
-              <ArrowRight size={14} />
-            </>
-          )}
-        </button>
-
-        {/* Toggle */}
-        <div className="text-center">
           <button
-            onClick={() => setIsSignup(!isSignup)}
-            className="text-sm text-gray-400"
+            type="submit"
+            disabled={loading}
+            className="w-full bg-linear-to-br from-primary to-primary-2 text-on-primary min-h-14 rounded-full font-semibold flex justify-center items-center gap-2 active:scale-[0.98] transition-transform shadow-card disabled:opacity-70"
           >
-            {isSignup ? "Already have an account? Login" : "Create new account"}
+            {loading ? <Loader2 className="animate-spin" size={20} /> : (
+              <>
+                {isSignup ? "Create account" : "Log in"}
+                <ArrowRight size={16} />
+              </>
+            )}
           </button>
-        </div>
+        </form>
 
-      </div>
-    </div>
+        <p className="text-center text-xs text-muted mt-4 px-4">
+          Your expenses saved as a guest will move to your account automatically.
+        </p>
+      </AuthShell>
+    </>
   );
 }
