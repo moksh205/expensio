@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Save, Trash2, LogOut, LogIn, CloudCheck, CloudOff,
-  ChevronRight, Download, Palette, ShieldCheck, KeyRound
+  ChevronRight, Download, Palette, ShieldCheck, KeyRound, Smartphone
 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import SEO from '../components/SEO';
 import Toast from '../components/Toast';
 import ThemeToggle from '../components/ThemeToggle';
 import { parseDate } from '../expenseUtils';
+import { useInstallPrompt, isIOS } from '../pwa';
 
 export default function Profile({ expenses = [], resetData, user, onLogout }) {
   const [name, setName] = useState(() => localStorage.getItem("username") || "");
@@ -21,6 +22,21 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
   });
 
   const navigate = useNavigate();
+  const { installed, install } = useInstallPrompt();
+
+  // 🔹 Install as app (native prompt, or how-to tip where there is none)
+  const handleInstall = async () => {
+    const result = await install();
+    if (result === "accepted") triggerToast("Expensio installed", "success");
+    else if (result === "unavailable") {
+      triggerToast(
+        isIOS()
+          ? "Tap Share, then \"Add to Home Screen\""
+          : "Use your browser menu → \"Install app\"",
+        "info"
+      );
+    }
+  };
 
   // 🔹 Opens the custom modal and resolves true/false
   const askConfirm = (message) =>
@@ -254,6 +270,16 @@ export default function Profile({ expenses = [], resetData, user, onLogout }) {
           </span>
           <ThemeToggle />
         </div>
+
+        {!installed && (
+          <button onClick={handleInstall} className={rowClass}>
+            <span className="flex items-center gap-3">
+              <span className={`${iconWrap} bg-accent-soft text-accent`}><Smartphone size={18} /></span>
+              <span className="text-sm font-medium">Install app</span>
+            </span>
+            <ChevronRight size={18} className="text-muted" />
+          </button>
+        )}
 
         <button onClick={handleExportCSV} className={rowClass}>
           <span className="flex items-center gap-3">
